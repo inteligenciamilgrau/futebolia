@@ -1,5 +1,7 @@
 # ⚽ FuteboliA - Jogo de Futebol com IA
 
+![FuteboliA Gameplay](assets/images/gameplay.jfif)
+
 Simulador de futebol minimalista em 3D usando **Node.js**, **Express**, **Socket.io** e **Three.js**. O jogo permite controle manual dos jogadores via API REST ou WebSockets, com suporte a comportamentos de IA para os jogadores não controlados.
 
 ## 🚀 Como Iniciar
@@ -55,6 +57,7 @@ Envia comandos para um jogador específico.
 
 ## 📁 Estrutura do Projeto
 
+- `/assets`: Recursos de mídia (imagens para o README, etc).
 - `/public`: Arquivos estáticos (HTML, CSS, JS do front-end).
 - `/src`: Lógica central do simulador (`game-engine.js`).
 - `server.js`: Configuração do servidor Express e Socket.io.
