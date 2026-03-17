@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuteboliA - Jogo de Futebol IA</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="start-screen">
+        <button id="start-btn">ENTRAR NO JOGO</button>
+    </div>
+
+    <div id="ui-layer">
+        <div id="placar-container">
+            <span class="time-a">BRASIL</span> &nbsp;<span id="score-a">0</span>
+            <div id="clock-container">
+                <div id="clock-wrapper"><div id="clock-fill"></div></div>
+                <div id="half-indicator">1º T</div>
+            </div>
+            <span id="score-b">0</span>&nbsp; <span class="time-b">ARGENTINA</span>
+        </div>
+        <div id="instructions">
+            <h3>Controles</h3>
+            <ul>
+                <li><b>W, A, S, D</b>: Mover</li>
+                <li><b>1, 2, 3</b>: Chutar</li>
+                <li><b>T</b>: Falar</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div id="center-messages">GOL!</div>
+
+    <script type="module" src="js/main.js?v=2"></script>
+</body>
+</html>

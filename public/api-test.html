@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuteboliA - Test Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent: #10b981;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            background: linear-gradient(to right, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .state-box {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 12px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #3b82f6;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            background: #334155;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #475569;
+            transform: translateY(-2px);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-primary { background: var(--primary); }
+        .btn-primary:hover { background: var(--primary-hover); }
+        
+        .btn-accent { background: var(--accent); }
+        .btn-accent:hover { filter: brightness(1.1); }
+
+        .btn-kick { background: var(--danger); font-size: 0.8rem; }
+
+        .status {
+            font-size: 0.75rem;
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-dim);
+        }
+
+        .status span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            margin-right: 5px;
+        }
+
+        .status.online span { background: var(--accent); }
+
+        /* Estilo para teclas direcionais */
+        .d-pad {
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 10px;
+            width: 150px;
+            margin: 0 auto 1.5rem;
+        }
+        .btn-up { grid-area: up; }
+        .btn-down { grid-area: down; }
+        .btn-left { grid-area: left; }
+        .btn-right { grid-area: right; }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚽ FuteboliA API Test</h1>
+
+        <div class="section">
+            <label>Estado do Jogo (API /state)</label>
+            <div id="game-state-display" class="state-box">Aguardando dados...</div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="fetchState()">Pedir Estado do Jogo!</button>
+        </div>
+
+        <div class="section">
+            <label for="player-id">Conectar ao ID do Jogador (1-10)</label>
+            <input type="number" id="player-id" min="1" max="10" value="1" onchange="fetchState()">
+            <div id="connection-status" class="status">
+                <span></span> Desconectado
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Movimentação</label>
+            <div class="d-pad">
+                <button class="btn btn-up" onclick="sendAction('move', -1, 0)">▲</button>
+                <button class="btn btn-left" onclick="sendAction('move', 0, 1)">◀</button>
+                <button class="btn btn-right" onclick="sendAction('move', 0, -1)">▶</button>
+                <button class="btn btn-down" onclick="sendAction('move', 1, 0)">▼</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Chutes</label>
+            <div class="actions">
+                <button class="btn btn-kick" onclick="sendAction('kick', 0, 0, 1)">CURTO [1]</button>
+                <button class="btn btn-kick" onclick="sendAction('kick', 0, 0, 2)">MÉDIO [2]</button>
+                <button class="btn btn-kick" onclick="sendAction('kick', 0, 0, 3)">LONGO [3]</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <label>Configurações & Social</label>
+            <input type="text" id="player-name" placeholder="Nome do Jogador...">
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="updateConfig()">Atualizar Nome</button>
+            
+            <input type="text" id="player-msg" placeholder="Diga algo...">
+            <button class="btn btn-accent" style="width: 100%;" onclick="sendSpeak()">Gritar! (Falar)</button>
+        </div>
+
+        <p style="font-size: 0.7rem; color: var(--text-dim); text-align: center;">
+            Você também pode usar as teclas WASD e 1-2-3 se o foco estiver na página.
+        </p>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const statusEl = document.getElementById('connection-status');
+        const playerIdInput = document.getElementById('player-id');
+        const stateDisplay = document.getElementById('game-state-display');
+
+        socket.on('connect', () => {
+            statusEl.classList.add('online');
+            statusEl.innerHTML = '<span></span> Conectado ao Servidor (Socket)';
+            fetchState();
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.classList.remove('online');
+            statusEl.innerHTML = '<span></span> Desconectado';
+        });
+
+        // Atualização automática via Socket para ver o estado fluindo
+        socket.on('state-update', (state) => {
+            updateStateDisplay(state);
+        });
+
+        async function fetchState() {
+            try {
+                const response = await fetch('/state');
+                const state = await response.json();
+                updateStateDisplay(state);
+            } catch (err) {
+                stateDisplay.innerText = "Erro ao buscar estado via API: " + err.message;
+            }
+        }
+
+        function updateStateDisplay(state) {
+            if (!state || !state.players) return;
+
+            const myPlayerId = parseInt(playerIdInput.value);
+            const myPlayer = state.players.find(p => p.id === myPlayerId);
+            
+            // Highlight current player info in the beginning
+            let displayString = `[ID CONECTADO: ${myPlayerId}]\n`;
+            if (myPlayer) {
+                displayString += `POSIÇÃO ATUAL: X:${myPlayer.x} Z:${myPlayer.z}\n`;
+            } else {
+                displayString += `JOGADOR NÃO ENCONTRADO\n`;
+            }
+            displayString += `--------------------------\n`;
+            
+            const fw = state.fieldSize?.width || "?";
+            const fh = state.fieldSize?.height || "?";
+            displayString += `TAMANHO DO CAMPO: ${fw}x${fh}\n`;
+            
+            const bx = state.ball?.x ?? "?";
+            const by = state.ball?.y?.toFixed(2) ?? "?";
+            const bz = state.ball?.z ?? "?";
+            displayString += `BOLA: X:${bx} Y:${by} Z:${bz}\n`;
+            
+            const scoreA = state.score?.A ?? 0;
+            const scoreB = state.score?.B ?? 0;
+            displayString += `PLACAR: A:${scoreA} B:${scoreB}\n`;
+            displayString += `--------------------------\n`;
+            displayString += JSON.stringify(state, null, 2);
+            
+            stateDisplay.innerText = displayString;
+        }
+
+        async function sendAction(type, dx, dz, power) {
+            const id = parseInt(playerIdInput.value);
+            const action = {
+                playerId: id,
+                type: type,
+                isManual: true
+            };
+
+            if (type === 'move') {
+                action.dx = dx;
+                action.dz = dz;
+            } else if (type === 'kick') {
+                action.power = power;
+            }
+
+            // Enviamos via POST para testar o endpoint conforme solicitado
+            try {
+                const response = await fetch('/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(action)
+                });
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Servidor retornou ${response.status}: ${text.substring(0, 100)}`);
+                }
+
+                const result = await response.json();
+                if (result.state) updateStateDisplay(result.state);
+            } catch (err) {
+                console.error("Erro no POST /action:", err);
+                stateDisplay.innerText = "ERRO NA API (POST /action): " + err.message + "\nTentando via Socket...";
+                // Fallback para socket se a API REST falhar
+                socket.emit('action', action);
+            }
+        }
+
+        async function updateConfig() {
+            const id = parseInt(playerIdInput.value);
+            const name = document.getElementById('player-name').value;
+            if (!name) return;
+            
+            const action = {
+                playerId: id,
+                type: 'config',
+                name: name,
+                number: id,
+                isManual: true
+            };
+
+            fetch('/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action)
+            });
+        }
+
+        async function sendSpeak() {
+            const id = parseInt(playerIdInput.value);
+            const text = document.getElementById('player-msg').value;
+            if (!text) return;
+
+            const action = {
+                playerId: id,
+                type: 'speak',
+                text: text,
+                isManual: true
+            };
+
+            fetch('/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(action)
+            });
+        }
+
+        // Suporte a teclado no Dashboard
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (document.activeElement.tagName === 'INPUT') return;
+
+            if (key === 'w' || key === 'arrowup') sendAction('move', -1, 0);
+            if (key === 's' || key === 'arrowdown') sendAction('move', 1, 0);
+            if (key === 'a' || key === 'arrowleft') sendAction('move', 0, 1);
+            if (key === 'd' || key === 'arrowright') sendAction('move', 0, -1);
+
+            if (key === '1') sendAction('kick', 0, 0, 1);
+            if (key === '2') sendAction('kick', 0, 0, 2);
+            if (key === '3') sendAction('kick', 0, 0, 3);
+        });
+    </script>
+</body>
+</html>
