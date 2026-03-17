@@ -207,9 +207,13 @@ function setupUI() {
     const startScreen = document.getElementById('start-screen');
     const ingameChkGk = document.getElementById('ingame-chk-goleiro');
 
-    // Carregar preferência salva do goleiro
+    // Carregar preferência salva do goleiro e oponente
     const savedAutoGk = localStorage.getItem('autoGk') !== 'false'; // Default true
     ingameChkGk.checked = savedAutoGk;
+
+    const chkOpponent = document.getElementById('ingame-chk-opponent');
+    const savedAutoOpponent = localStorage.getItem('autoOpponent') === 'true'; // Default false
+    chkOpponent.checked = savedAutoOpponent;
 
     document.getElementById('btn-jogar').addEventListener('click', () => {
         startScreen.style.display = 'none';
@@ -253,6 +257,7 @@ function setupUI() {
     });
 
     document.getElementById('ingame-chk-opponent').addEventListener('change', (e) => {
+        localStorage.setItem('autoOpponent', e.target.checked);
         if (!selectedPlayerId) return;
         socket.emit('action', { type: 'toggleOpponent', active: e.target.checked });
     });

@@ -493,6 +493,13 @@ export class GameEngine {
 
         const p = targetPlayer;
 
+        // Processamento global de fala (balão de texto)
+        const speechText = action.text || action.thinking;
+        if (speechText) {
+            p.message = speechText.substring(0, 100);
+            p.messageTimeout = 3.0; // Duração do balão
+        }
+
         if (action.type === 'move') {
             if (p.cooldown > 0) return; // Prevent rapid movement spam
             const moved = this.movePlayer(p, (action.dx || 0) * 10, (action.dz || 0) * 10);

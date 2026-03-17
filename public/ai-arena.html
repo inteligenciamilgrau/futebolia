@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuteboliA - AI 1v1 Arena</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050a14;
+            --card: rgba(20, 30, 50, 0.7);
+            --primary: #3b82f6;
+            --secondary: #10b981;
+            --brasil: #fde100;
+            --argentina: #75b2dd;
+            --text: #f8fafc;
+            --accent: #6366f1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 2rem;
+            overflow: hidden;
+        }
+
+        h1, h2, h3 { font-family: 'Outfit', sans-serif; }
+
+        /* Glassmorphism Panel */
+        .panel {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover { border-color: rgba(255, 255, 255, 0.2); }
+
+        /* Configuration Styles */
+        .config-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        textarea { resize: none; font-family: 'Inter', sans-serif; line-height: 1.5; }
+
+        /* Center Arena */
+        .arena-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .game-state-card {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 32px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .pitch-svg {
+            width: 400px;
+            height: 600px;
+            opacity: 0.5;
+        }
+
+        .stats-overlay {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: 900; color: white; }
+        .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-step { background: var(--accent); }
+        .btn-play { background: var(--secondary); }
+        .btn-stop { background: #ef4444; }
+
+        /* Log / Console */
+        .console {
+            height: 200px;
+            background: #000;
+            border-radius: 16px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            color: #10b981;
+            overflow-y: auto;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .log-entry { margin-bottom: 0.5rem; border-left: 2px solid #333; padding-left: 0.5rem; }
+        .log-time { color: #666; }
+        .log-player1 { border-color: var(--brasil); }
+        .log-player2 { border-color: var(--argentina); }
+
+        /* Player Colors Headers */
+        .player1-header { color: var(--brasil); }
+        .player2-header { color: var(--argentina); }
+
+        .controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        #goal-notification {
+            position: absolute;
+            font-size: 100px;
+            font-weight: 900;
+            color: var(--brasil);
+            text-shadow: 0 0 40px rgba(0,0,0,1);
+            display: none;
+            z-index: 100;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+
+    <!-- Left Panel: Brasil Config -->
+    <div class="panel">
+        <div class="config-header">
+            <h2 class="player1-header">🇧🇷 BRASIL (P1)</h2>
+        </div>
+        
+        <div>
+            <label>Modelo IA</label>
+            <select id="p1-model"><option>Carregando modelos...</option></select>
+        </div>
+
+        <div>
+            <label>Prompt de Sistema</label>
+            <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira! Sinta a emoção do Maracanã!
+Sua meta é o gol em Z=-150.
+No campo "thinking", escreva pensamentos empolgantes de um jogador (ex: "VOU DRIBLAR!", "É AGORA!", "PRA CIMA DELES, BRASIL!"). No resto do JSON, seja técnico.
+Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+        </div>
+    </div>
+
+    <!-- Center Panel: Arena -->
+    <div class="arena-main">
+        <div class="panel" style="flex-direction: row; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
+            <div style="display: flex; gap: 2rem; flex: 1;">
+                <div style="flex: 1;">
+                    <label>Omni Route API Host</label>
+                    <input type="text" id="api-host" value="https://api.omniroute.ai/v1" placeholder="https://...">
+                </div>
+                <div style="flex: 1;">
+                    <label>API Key</label>
+                    <input type="password" id="api-key" placeholder="Sua chave secreta...">
+                </div>
+            </div>
+            <button class="btn" style="margin-left: 1rem; padding: 0.75rem 1.5rem;" onclick="refreshModels()">🔄 Sync</button>
+        </div>
+
+        <div class="game-state-card" id="arena-visual">
+            <div id="goal-notification">GOL!</div>
+            <div class="stats-overlay">
+                <div class="stat-item">
+                    <div class="stat-value" id="score-a" style="color: var(--brasil);">0</div>
+                    <div class="stat-label">Brasil</div>
+                </div>
+                <div class="stat-item" style="display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0.5; padding-top: 10px;">X</div>
+                <div class="stat-item">
+                    <div class="stat-value" id="score-b" style="color: var(--argentina);">0</div>
+                    <div class="stat-label">Argentina</div>
+                </div>
+                <div class="stat-item" style="margin-left: 2rem;">
+                    <div class="stat-value" id="game-time" style="font-size: 1.5rem; margin-top: 0.5rem;">05:00</div>
+                    <div class="stat-label">Tempo</div>
+                </div>
+            </div>
+            
+            <svg class="pitch-svg" viewBox="0 0 200 300">
+                <rect x="0" y="0" width="200" height="300" fill="#1e3a8a33" stroke="white" stroke-width="2"/>
+                <line x1="0" y1="150" x2="200" y2="150" stroke="white" stroke-width="1"/>
+                <circle cx="100" cy="150" r="30" fill="none" stroke="white" stroke-width="1"/>
+                <rect x="70" y="0" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
+                <rect x="70" y="280" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
+                <!-- Players & Ball added by JS -->
+                <g id="dynamic-elements"></g>
+            </svg>
+        </div>
+
+        <div class="controls-row">
+            <button class="btn btn-step" onclick="takeStep()">⚡ Executar Turno (Single)</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="btn-play" class="btn btn-play" style="flex: 1;" onclick="startLoop()">▶ Iniciar Arena Loop</button>
+                <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
+            </div>
+        </div>
+
+        <div id="log-console" class="console">
+            <div class="log-entry">Arena iniciada. Aguardando configuração de API...</div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Argentina Config -->
+    <div class="panel">
+        <div class="config-header">
+            <h2 class="player2-header">🇦🇷 ARGENTINA (P2)</h2>
+        </div>
+        
+        <div>
+            <label>Modelo IA</label>
+            <select id="p2-model"><option>Carregando modelos...</option></select>
+        </div>
+
+        <div>
+            <label>Prompt de Sistema</label>
+            <textarea id="p2-prompt" rows="18">Você é o 10 da Argentina! Jogue com o coração e a raça argentina!
+Sua meta é o gol em Z=150.
+No campo "thinking", use frases heróicas e emocionantes de um jogador (ex: "VAMOS ARGENTINA!", "DENTRO DA REDE!", "NÃO VAI PASSAR!"). No resto do JSON, seja técnico.
+Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let lastState = null;
+
+        // Configuration Persistence
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedHost = localStorage.getItem('arena_api_host');
+            if (savedHost) document.getElementById('api-host').value = savedHost;
+            
+            document.getElementById('api-host').addEventListener('change', (e) => {
+                localStorage.setItem('arena_api_host', e.target.value);
+            });
+
+            document.getElementById('p1-model').addEventListener('change', (e) => {
+                localStorage.setItem('arena_p1_model', e.target.value);
+            });
+
+            document.getElementById('p2-model').addEventListener('change', (e) => {
+                localStorage.setItem('arena_p2_model', e.target.value);
+            });
+
+            fetchGameState();
+        });
+
+        async function log(msg, type = '') {
+            const consoleEl = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            consoleEl.prepend(entry);
+        }
+
+        async function refreshModels() {
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value || ""; // Default empty
+            
+            try {
+                log("Sincronizando modelos...");
+                const response = await fetch(`${host}/models`, {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                
+                const p1Select = document.getElementById('p1-model');
+                const p2Select = document.getElementById('p2-model');
+                
+                const savedP1 = localStorage.getItem('arena_p1_model');
+                const savedP2 = localStorage.getItem('arena_p2_model');
+
+                p1Select.innerHTML = "";
+                p2Select.innerHTML = "";
+                
+                data.data.forEach(model => {
+                    const opt1 = document.createElement('option');
+                    opt1.value = model.id;
+                    opt1.text = model.id;
+                    if (model.id === savedP1) opt1.selected = true;
+                    p1Select.add(opt1);
+                    
+                    const opt2 = document.createElement('option');
+                    opt2.value = model.id;
+                    opt2.text = model.id;
+                    if (model.id === savedP2) opt2.selected = true;
+                    p2Select.add(opt2);
+                });
+
+                log("Modelos sincronizados!");
+            } catch (err) {
+                log(`Erro ao buscar modelos: ${err.message}`, 'log-error');
+            }
+        }
+
+        async function fetchGameState() {
+            try {
+                const response = await fetch('/state?roomId=1v1');
+                lastState = await response.json();
+                updateVisual(lastState);
+            } catch (err) {
+                console.error("Erro ao buscar estado:", err);
+            }
+        }
+
+        function updateVisual(state) {
+            document.getElementById('score-a').innerText = state.score.A;
+            document.getElementById('score-b').innerText = state.score.B;
+            
+            const mins = Math.floor(state.gameTime / 60).toString().padStart(2, '0');
+            const secs = Math.floor(state.gameTime % 60).toString().padStart(2, '0');
+            document.getElementById('game-time').innerText = `${mins}:${secs}`;
+
+            const dynamic = document.getElementById('dynamic-elements');
+            dynamic.innerHTML = "";
+
+            // Ball
+            const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            ball.setAttribute("cx", state.ball.x + 100);
+            ball.setAttribute("cy", state.ball.z + 150);
+            ball.setAttribute("r", "4");
+            ball.setAttribute("fill", "white");
+            ball.setAttribute("filter", "drop-shadow(0 0 5px #fff)");
+            dynamic.appendChild(ball);
+
+            // Players
+            state.players.forEach(p => {
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", p.x + 100);
+                circle.setAttribute("cy", p.z + 150);
+                circle.setAttribute("r", "8");
+                circle.setAttribute("fill", p.team === 'A' ? "#fde100" : "#75b2dd");
+                group.appendChild(circle);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", p.x + 100);
+                text.setAttribute("y", p.z + 150 + 4);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("font-size", "10");
+                text.setAttribute("font-weight", "bold");
+                text.setAttribute("fill", "#000");
+                text.textContent = p.id === 1 ? "P1" : "P2";
+                group.appendChild(text);
+
+                dynamic.appendChild(group);
+            });
+
+            const goalNotif = document.getElementById('goal-notification');
+            if (state.isGoal) {
+                goalNotif.style.display = 'block';
+            } else {
+                goalNotif.style.display = 'none';
+            }
+        }
+
+        async function askAI(playerNum) {
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value || ""; // Default empty
+            const model = document.getElementById(`p${playerNum}-model`).value;
+            const systemPrompt = document.getElementById(`p${playerNum}-prompt`).value;
+
+            // Simplified state for AI
+            const simplifiedState = {
+                ball: lastState.ball,
+                me: lastState.players.find(p => playerNum === 1 ? p.id === 1 : p.id === 6),
+                opponent: lastState.players.find(p => playerNum === 1 ? p.id === 6 : p.id === 1)
+            };
+
+            try {
+                log(`P${playerNum} pensando...`, `log-player${playerNum}`);
+                const response = await fetch(`${host}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${key}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: `Estado Atual: ${JSON.stringify(simplifiedState)}` }
+                        ],
+                        response_format: { type: "json_object" }
+                    })
+                });
+
+                const data = await response.json();
+                let aiResponse = JSON.parse(data.choices[0].message.content);
+                
+                // Normalização: se a IA mandou "action" em vez de "type", corrigimos aqui
+                if (aiResponse.action && !aiResponse.type) {
+                    aiResponse.type = aiResponse.action;
+                }
+                
+                return aiResponse;
+            } catch (err) {
+                log(`P${playerNum} Error: ${err.message}`, 'log-error');
+                return null;
+            }
+        }
+
+        async function sendToGame(playerId, action) {
+            await fetch('/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: '1v1',
+                    playerId: playerId,
+                    isManual: true,
+                    ...action
+                })
+            });
+        }
+
+        async function takeStep() {
+            await fetchGameState();
+            
+            // Brasil turn (P1)
+            const p1Action = await askAI(1);
+            if (p1Action) {
+                if (p1Action.thinking) {
+                    log(`Brasil (Pensamento): ${p1Action.thinking}`, 'log-player1');
+                    p1Action.text = p1Action.thinking; // Mapeia para o balão de fala
+                }
+                log(`Brasil executa: ${p1Action.type || p1Action.action} (${p1Action.dx}, ${p1Action.dz})`, 'log-player1');
+                await sendToGame(1, p1Action);
+            }
+            
+            await new Promise(r => setTimeout(r, 300)); // Delay between moves
+            await fetchGameState();
+
+            // Argentina turn (P2)
+            const p2Action = await askAI(2);
+            if (p2Action) {
+                if (p2Action.thinking) {
+                    log(`Argentina (Pensamento): ${p2Action.thinking}`, 'log-player2');
+                    p2Action.text = p2Action.thinking; // Mapeia para o balão de fala
+                }
+                log(`Argentina executa: ${p2Action.type || p2Action.action} (${p2Action.dx}, ${p2Action.dz})`, 'log-player2');
+                await sendToGame(2, p2Action); 
+            }
+            
+            await fetchGameState();
+        }
+
+        let loopTimer = null;
+        function startLoop() {
+            isRunning = true;
+            document.getElementById('btn-play').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'block';
+            log("Loop de Arena iniciado!");
+            runLoop();
+        }
+
+        async function runLoop() {
+            if (!isRunning) return;
+            await takeStep();
+            loopTimer = setTimeout(runLoop, 200);
+        }
+
+        function stopLoop() {
+            isRunning = false;
+            clearTimeout(loopTimer);
+            document.getElementById('btn-play').style.display = 'block';
+            document.getElementById('btn-stop').style.display = 'none';
+            log("Loop de Arena parado.");
+        }
+
+        setInterval(fetchGameState, 500);
+    </script>
+</body>
+</html>

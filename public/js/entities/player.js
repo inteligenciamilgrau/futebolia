@@ -20,7 +20,7 @@ export class Player {
         
         this.nameLabel.position.y = 21;
         this.numberLabel.position.y = 18;
-        this.bubble.position.y = 35; 
+        this.bubble.position.y = 45; // Aumentado de 35 para 45 para não cobrir o jogador 
 
         scene.add(this.mesh);
         this.update(data);
@@ -141,43 +141,79 @@ export class Player {
             this.bubble.visible = false;
             return;
         }
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const fontSize = 120; // 5x maior
-        const padding = 60;
+        const fontSize = 90; // Diminuído levemente de 110 para 90
+        const maxWidth = 850; 
+        const lineHeight = fontSize * 1.2;
+        const padding = 70;
 
         ctx.font = `bold ${fontSize}px Inter, Arial`;
-        const metrics = ctx.measureText(text);
-        const textWidth = metrics.width;
 
-        canvas.width = textWidth + padding * 2;
-        canvas.height = fontSize + padding * 2 + 40; // Espaço para a ponta do balão
+        // Função para quebrar o texto
+        const getLines = (ctx, text, maxWidth) => {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = ctx.measureText(currentLine + " " + word).width;
+                if (width < maxWidth) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+
+        const lines = getLines(ctx, text, maxWidth);
+        
+        // Calcular dimensões finais
+        let maxLineWidth = 0;
+        lines.forEach(line => {
+            const width = ctx.measureText(line).width;
+            if (width > maxLineWidth) maxLineWidth = width;
+        });
+
+        const bubbleWidth = maxLineWidth + padding * 2;
+        const bubbleHeight = (lines.length * lineHeight) + padding;
+
+        canvas.width = bubbleWidth;
+        canvas.height = bubbleHeight + 60; // Extra para a ponta
 
         // Desenhar balão (corpo)
         ctx.fillStyle = 'white';
         ctx.beginPath();
-        ctx.roundRect(0, 0, canvas.width, fontSize + padding, 40);
+        ctx.roundRect(0, 0, bubbleWidth, bubbleHeight, 50);
         ctx.fill();
 
         // Ponta do balão
         ctx.beginPath();
-        ctx.moveTo(canvas.width / 2 - 30, fontSize + padding);
-        ctx.lineTo(canvas.width / 2, canvas.width > 200 ? fontSize + padding + 40 : fontSize + padding + 30);
-        ctx.lineTo(canvas.width / 2 + 30, fontSize + padding);
+        ctx.moveTo(bubbleWidth / 2 - 40, bubbleHeight);
+        ctx.lineTo(bubbleWidth / 2, bubbleHeight + 50);
+        ctx.lineTo(bubbleWidth / 2 + 40, bubbleHeight);
         ctx.fill();
 
-        // Texto
+        // Texto Multilinha
         ctx.fillStyle = 'black';
         ctx.font = `bold ${fontSize}px Inter, Arial`;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, canvas.width / 2, (fontSize + padding) / 2);
+        ctx.textBaseline = 'top';
+
+        lines.forEach((line, index) => {
+            ctx.fillText(line, bubbleWidth / 2, (padding / 2) + (index * lineHeight));
+        });
 
         const oldMap = this.bubble.material.map;
         this.bubble.material.map = new THREE.CanvasTexture(canvas);
         if (oldMap) oldMap.dispose();
         
-        // Reduzido o scale factor de 12 para 20 para deixar o balão ainda menor
+        // Ajustado o divisor para 20 para deixar o balão um pouco menor após diminuir a fonte
         this.bubble.scale.set(canvas.width / 20, canvas.height / 20, 1); 
         this.bubble.visible = true; 
     }
