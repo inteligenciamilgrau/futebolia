@@ -62,10 +62,12 @@ Para atuar, a IA deve enviar um objeto JSON.
   "type": "move",
   "dx": 1, 
   "dz": 0,
+  "thinking": "Vou pra cima deles!",
   "isManual": true
 }
 ```
 - `dx` / `dz`: Valores entre `-1`, `0` e `1`. Cada comando move o jogador **10 unidades**.
+- `thinking`: **Opcional**. O texto enviado aqui aparecerá em um balão de fala sobre o jogador. Agora com suporte a múltiplas linhas (wrap automático).
 - `isManual`: **Obrigatório** para assumir o controle e desativar a IA interna temporariamente.
 
 ### Exemplo de Chute:
@@ -90,9 +92,10 @@ Para atuar, a IA deve enviar um objeto JSON.
 1. **Loop de Controle**: O servidor processa a física a cada **50ms (20 FPS)**. Não adianta enviar comandos mais rápido que isso; um intervalo de 100ms a 200ms por ação é o ideal.
 2. **Condução de Bola**: Se você se mover para a mesma casa que a bola, você a "empurrará".
 3. **Mapeamento 1v1**: No modo Mano a Mano:
-    - `playerId: 1` controla o Brasil.
-    - `playerId: 2` (via API) controla a Argentina.
-4. **Cálculo de Distância**: Use a distância de Manhattan ou Euclidiana para decidir se deve correr para a bola ou voltar para a defesa.
+    - `playerId: 1` controla o Brasil (Time A).
+    - `playerId: 2` (via API) controla a Argentina (Time B / ID Interno 6).
+4. **Balões de Fala Multilinha**: O servidor agora quebra o texto do campo `thinking` (ou `text`) automaticamente se for muito longo, permitindo que a IA expresse raciocínios mais complexos sem poluir visualmente o campo.
+5. **Cálculo de Distância**: Use a distância de Manhattan ou Euclidiana para decidir se deve correr para a bola ou voltar para a defesa.
 
 ---
 

@@ -1,6 +1,7 @@
 # ⚽ FuteboliA - Jogo de Futebol com IA
 
 ![FuteboliA Gameplay](assets/images/gameplay.jfif)
+![AI 1v1 Arena](assets/images/simulando_duas_iAs_jogando.jfif)
 
 Simulador de futebol minimalista em 3D usando **Node.js**, **Express**, **Socket.io** e **Three.js**. O jogo permite controle manual dos jogadores via API REST ou WebSockets, com suporte a comportamentos de IA para os jogadores não controlados.
 
@@ -16,9 +17,15 @@ Simulador de futebol minimalista em 3D usando **Node.js**, **Express**, **Socket
     ```
 3.  Acesse o simulador: `http://localhost:3000`
 
+## 🤖 AI 1v1 Arena
+
+O projeto conta com um dashboard premium para colocar duas IAs para duelarem em tempo real:
+- URL: `http://localhost:3000/ai-arena.html`
+- **Funcionalidades**: Configuração de Host da API, seleção de modelos, edição de prompts e logs de raciocínio.
+
 ## 🕹️ Painel de Teste da API
 
-Existe um dashboard dedicado para testar os comandos e visualizar o estado do jogo via API:
+Dashboard para testar comandos individuais e visualizar o estado JSON:
 - URL: `http://localhost:3000/api-test.html`
 
 ## 🔌 API de Integração
