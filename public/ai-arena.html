@@ -279,12 +279,13 @@
 
         <div>
             <label>Prompt de Sistema</label>
-            <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira! Sinta a emoção do Maracanã!
-O campo tem X: 0-200 e Y: 0-300. Use as COORDENADAS DE XADREZ (A-J, 1-15).
-Sua meta é o gol em Y=0 (linha 1). Você defende o gol em Y=300 (linha 15).
-Se "posse_de_bola" for true, CHUTE (kick) para o gol alvo ou use "pull" para driblar.
-No campo "thinking", escreva frases CURTAS e marcantes (máximo 5 palavras). No resto do JSON, seja técnico.
-Responda APENAS um JSON: {"thinking": "Vou pra cima!", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+            <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira!
+O campo tem X: 0-200 e Y: 0-300 (Xadrez: A-J, 1-15). Sua meta o GOL em Y=0.
+DICA TÁTICA: Com a bola, DESVIE do adversário para não ser desarmado.
+PULL: Se a bola passou de você ou está na direção errada, use {"type":"pull"} para trazê-la de volta.
+MOVIMENTO: Envie o quadrado alvo. Ex: {"thinking":"Driblando!","type":"move","target":"F8"}
+CHUTE: Use "kick" (power 1-3) apenas quando tiver ângulo para o gol.
+Responda APENAS o JSON puro.</textarea>
             <button class="btn btn-view-prompt" onclick="openPromptModal(1)">🔍 Ver Último Prompt (P1)</button>
         </div>
     </div>
@@ -388,12 +389,13 @@ Responda APENAS um JSON: {"thinking": "Vou pra cima!", "type": "move|kick|pull",
 
         <div>
             <label>Prompt de Sistema</label>
-            <textarea id="p2-prompt" rows="18">¡Sos el 10 de la Selección Argentina! ¡Jugá con toda la garra y el corazón!
-El campo es de X: 0-200 y Y: 0-300. Usá las COORDENADAS DE AJEDREZ (A-J, 1-15).
-Tu objetivo es el arco en Y=300 (línea 15). Defendés el arco en Y=0 (línea 1).
-Si "posse_de_bola" es true, PEGALE (kick) al arco o usá "pull" para gambetear.
-En el campo "thinking", frases MUY CORTAS (máx 5 palabras) en ESPAÑOL ARGENTINO.
-Respondé SOLO un JSON: {"thinking": "¡Vamo' Argentina!", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+            <textarea id="p2-prompt" rows="18">¡Sos el 10 de la Selección Argentina!
+El campo es de X: 0-200 y Y: 0-300 (Ajedrez: A-J, 1-15). Tu meta el ARCO en Y=300.
+TÁCTICA: Con la pelota, GAMBETEÁ (evitá) al rival para que no te la saque.
+PULL: Si la pelota te pasó o está mal ubicada, usá {"type":"pull"} para acomodarla.
+MOVIMIENTO: Enviá el cuadrado objetivo. Ex: {"thinking":"¡Gambeta!","type":"move","target":"E12"}
+REMATE: Usá "kick" (power 1-3) solo cuando tengas ángulo de gol.
+Respondé SOLO el JSON puro.</textarea>
             <button class="btn btn-view-prompt" onclick="openPromptModal(2)">🔍 Ver Último Prompt (P2)</button>
         </div>
     </div>
@@ -622,6 +624,18 @@ Respondé SOLO un JSON: {"thinking": "¡Vamo' Argentina!", "type": "move|kick|pu
             };
         }
 
+        function chessToCoord(chess) {
+            if (!chess || chess.length < 2) return null;
+            const letters = "ABCDEFGHIJ";
+            const char = chess[0].toUpperCase();
+            const num = parseInt(chess.substring(1));
+            
+            const ax = letters.indexOf(char) * 20 + 10;
+            const ay = (num - 1) * 20 + 10;
+            
+            return { x: ax, y: ay };
+        }
+
         async function askAI(playerNum) {
             const host = document.getElementById('api-host').value;
             const key = document.getElementById('api-key').value || ""; 
@@ -685,6 +699,15 @@ Respondé SOLO un JSON: {"thinking": "¡Vamo' Argentina!", "type": "move|kick|pu
                 // Normalização: se a IA mandou "action" em vez de "type", corrigimos aqui
                 if (aiResponse.action && !aiResponse.type) {
                     aiResponse.type = aiResponse.action;
+                }
+
+                // Lógica de Movimento por Alvo de Xadrez (Simplificado)
+                if (aiResponse.type === 'move' && aiResponse.target) {
+                    const targetPos = chessToCoord(aiResponse.target);
+                    if (targetPos) {
+                        aiResponse.dx = Math.sign(targetPos.x - myPos.x);
+                        aiResponse.dz = Math.sign(targetPos.y - myPos.y);
+                    }
                 }
                 
                 return aiResponse;

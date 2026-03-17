@@ -58,20 +58,19 @@ Para atuar, a IA deve enviar um objeto JSON.
 
 **Endpoint:** `POST /action`
 
-### Exemplo de Movimento:
+### Exemplo de Movimento (Simplificado):
 ```json
 {
   "roomId": "1v1",
   "playerId": 2,
   "type": "move",
-  "dx": 1, 
-  "dz": 0,
-  "thinking": "Vou pra cima deles!",
+  "target": "F8",
+  "thinking": "Indo interceptar!",
   "isManual": true
 }
 ```
-- `dx` / `dz`: Valores entre `-1`, `0` e `1`. Cada comando move o jogador **10 unidades**.
-- `thinking`: **Opcional**. O texto enviado aqui aparecerá em um balão de fala sobre o jogador. Agora com suporte a múltiplas linhas (wrap automático).
+- `target`: O quadrado de xadrez para onde você quer dar o próximo passo (ex: `A1`, `J15`). O sistema calculará automaticamente o melhor passo (incluindo diagonais).
+- `thinking`: **Opcional**. O texto enviado aqui aparecerá em um balão de fala sobre o jogador.
 - `isManual`: **Obrigatório** para assumir o controle e desativar a IA interna temporariamente.
 
 ### Exemplo de Chute:
@@ -143,3 +142,13 @@ def play_loop():
         
         time.sleep(0.1) # Aguarda 100ms
 ```
+
+---
+
+## ⚠️ 4. Problemas Comuns (Pitfalls)
+
+1. **Hallucinação de Comandos**: A IA **NUNCA** deve enviar comandos como `kick(1)` ou `move(1, 0)`. Toda comunicação deve ser um **JSON válido**.
+   - **Errado**: `{"action": "kick(2)"}`
+   - **Certo**: `{"type": "kick", "power": 2}`
+2. **Campos Extras**: Não invente campos no JSON. Siga estritamente o esquema esperado (`type`, `dx`, `dz`, `power`, `thinking`).
+3. **Ponto Flutuante**: Para `dx` e `dz`, use apenas `-1`, `0` ou `1`. O servidor não processa frações nessas ações discretas.
