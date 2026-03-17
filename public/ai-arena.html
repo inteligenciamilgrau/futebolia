@@ -206,12 +206,22 @@
             <select id="p1-model"><option>Carregando modelos...</option></select>
         </div>
 
+        <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+            <label>Nome do Jogador</label>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="p1-name" placeholder="Brasil P1" style="flex: 1;">
+                <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(1)">Set</button>
+            </div>
+        </div>
+
         <div>
             <label>Prompt de Sistema</label>
             <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira! Sinta a emoção do Maracanã!
-Sua meta é o gol em Z=-150.
-No campo "thinking", escreva pensamentos empolgantes de um jogador (ex: "VOU DRIBLAR!", "É AGORA!", "PRA CIMA DELES, BRASIL!"). No resto do JSON, seja técnico.
-Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+O campo tem X: 0-200 e Y: 0-300.
+Sua meta é o gol em Y=0. Você defende o gol em Y=300.
+No campo "thinking", escreva pensamentos empolgantes de um jogador. No resto do JSON, seja técnico.
+Responda APENAS um JSON: {"thinking": "emoção", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.
+Nota: "pull" faz a bola passar por baixo de você se você estiver na frente dela. "dz" mede profundidade.</textarea>
         </div>
     </div>
 
@@ -255,6 +265,16 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
                 <circle cx="100" cy="150" r="30" fill="none" stroke="white" stroke-width="1"/>
                 <rect x="70" y="0" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
                 <rect x="70" y="280" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
+                <!-- Flag Brasil (Y=300 / Defesa) -->
+                <g transform="translate(40, 260)">
+                    <rect width="20" height="15" fill="#009b3a" stroke="white" stroke-width="1"/>
+                    <circle cx="10" cy="7.5" r="4" fill="#002776"/>
+                </g>
+                <!-- Flag Argentina (Y=0 / Defesa) -->
+                <g transform="translate(140, 25)">
+                    <rect width="20" height="15" fill="#75b2dd" stroke="white" stroke-width="1"/>
+                    <rect y="5" width="20" height="5" fill="white"/>
+                </g>
                 <!-- Players & Ball added by JS -->
                 <g id="dynamic-elements"></g>
             </svg>
@@ -284,12 +304,22 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
             <select id="p2-model"><option>Carregando modelos...</option></select>
         </div>
 
+        <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+            <label>Nome do Jogador</label>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="p2-name" placeholder="Argentina P2" style="flex: 1;">
+                <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(2)">Set</button>
+            </div>
+        </div>
+
         <div>
             <label>Prompt de Sistema</label>
             <textarea id="p2-prompt" rows="18">Você é o 10 da Argentina! Jogue com o coração e a raça argentina!
-Sua meta é o gol em Z=150.
-No campo "thinking", use frases heróicas e emocionantes de um jogador (ex: "VAMOS ARGENTINA!", "DENTRO DA REDE!", "NÃO VAI PASSAR!"). No resto do JSON, seja técnico.
-Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+O campo tem X: 0-200 e Y: 0-300.
+Sua meta é o gol em Y=300. Você defende o gol em Y=0.
+No campo "thinking", use frases heróicas e emocionantes de um jogador. No resto do JSON, seja técnico.
+Responda APENAS um JSON: {"thinking": "emoção", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.
+Nota: "pull" faz a bola passar por baixo de você se você estiver na frente dela. "dz" mede profundidade.</textarea>
         </div>
     </div>
 
@@ -364,8 +394,10 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
                 });
 
                 log("Modelos sincronizados!");
+                return true;
             } catch (err) {
                 log(`Erro ao buscar modelos: ${err.message}`, 'log-error');
+                return false;
             }
         }
 
@@ -431,17 +463,42 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
             }
         }
 
+        function translateCoord(x, z) {
+            // Interno (-100 a 100, -150 a 150) -> AI (0 a 200, 0 a 300)
+            // No jogo Z é o comprimento, na IA chamamos de Y.
+            return {
+                x: Math.round(x + 100),
+                y: Math.round(z + 150)
+            };
+        }
+
         async function askAI(playerNum) {
             const host = document.getElementById('api-host').value;
-            const key = document.getElementById('api-key').value || ""; // Default empty
+            const key = document.getElementById('api-key').value || ""; 
             const model = document.getElementById(`p${playerNum}-model`).value;
             const systemPrompt = document.getElementById(`p${playerNum}-prompt`).value;
 
-            // Simplified state for AI
+            const meData = lastState.players.find(p => playerNum === 1 ? p.id === 1 : p.id === 6);
+            const oppData = lastState.players.find(p => playerNum === 1 ? p.id === 6 : p.id === 1);
+            
+            const myPos = translateCoord(meData.x, meData.z);
+            const ballPos = translateCoord(lastState.ball.x, lastState.ball.z);
+            const oppPos = translateCoord(oppData.x, oppData.z);
+            
+            // Definições fixas do campo traduzido
+            const field = { width: 200, length: 300 };
+            const myGoal = { x: 100, y: playerNum === 1 ? 300 : 0 };
+            const targetGoal = { x: 100, y: playerNum === 1 ? 0 : 300 };
+
             const simplifiedState = {
-                ball: lastState.ball,
-                me: lastState.players.find(p => playerNum === 1 ? p.id === 1 : p.id === 6),
-                opponent: lastState.players.find(p => playerNum === 1 ? p.id === 6 : p.id === 1)
+                voca: "Você é o Jogador " + (playerNum === 1 ? "1 (Brasil)" : "2 (Argentina)"),
+                campo: field,
+                minha_posicao: myPos,
+                bola: ballPos,
+                adversario: oppPos,
+                meu_gol: myGoal,
+                gol_alvo: targetGoal,
+                placar: lastState.score
             };
 
             try {
@@ -456,7 +513,7 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
                         model: model,
                         messages: [
                             { role: "system", content: systemPrompt },
-                            { role: "user", content: `Estado Atual: ${JSON.stringify(simplifiedState)}` }
+                            { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300):\n${JSON.stringify(simplifiedState, null, 2)}` }
                         ],
                         response_format: { type: "json_object" }
                     })
@@ -490,7 +547,37 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
             });
         }
 
+        async function updateName(playerNum) {
+            const nameInput = document.getElementById(`p${playerNum}-name`);
+            const name = nameInput.value;
+            if (!name) return;
+            
+            log(`P${playerNum} alterando nome para: ${name}...`);
+            await sendToGame(playerNum, {
+                type: 'config',
+                name: name,
+                number: playerNum === 1 ? 10 : 7 // Números padrão
+            });
+        }
+
         async function takeStep() {
+            const p1Select = document.getElementById('p1-model');
+            
+            // Só tenta sincronizar se não houver modelos (Exceto o default vazio)
+            if (p1Select.options.length <= 1) {
+                if (!document.getElementById('api-host').value || !document.getElementById('api-key').value) {
+                    alert("Modelos não sincronizados. Por favor, configure o API Host e a API Key.");
+                    return;
+                }
+
+                log("Sincronizando modelos automaticamente...");
+                const synced = await refreshModels();
+                if (!synced) {
+                    alert("Não foi possível sincronizar os modelos automaticamente. Verifique sua chave e host.");
+                    return;
+                }
+            }
+
             await fetchGameState();
             
             // Brasil turn (P1)
@@ -522,7 +609,7 @@ Responda APENAS um JSON: {"thinking": "emoção do jogador", "type": "move|kick"
         }
 
         let loopTimer = null;
-        function startLoop() {
+        async function startLoop() {
             isRunning = true;
             document.getElementById('btn-play').style.display = 'none';
             document.getElementById('btn-stop').style.display = 'block';

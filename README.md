@@ -53,6 +53,7 @@ Envia comandos para um jogador específico.
 #### Tipos de Ação:
 - `move`: Movimenta o jogador (`dx`, `dz`).
 - `kick`: Realiza um chute (`power`: 1-Curto, 2-Médio, 3-Longo).
+- `pull`: Puxa a bola para o lado oposto do jogador (ajuda na recuperação).
 - `speak`: Exibe um balão de fala (`text`).
 - `config`: Altera nome ou número do jogador (`name`, `number`).
 

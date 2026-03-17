@@ -169,8 +169,70 @@ function buildPitch() {
         scene.add(goalGroup);
     }
 
-    createGoal(-150); 
-    createGoal(150);  
+    createGoal(-150); // Argentina Goal
+    createGoal(150);  // Brasil Goal
+
+    function createFlag(x, z, team) {
+        const flagGroup = new THREE.Group();
+        
+        // Pole
+        const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, 30, 8);
+        const poleMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.y = 15;
+        pole.castShadow = true;
+        flagGroup.add(pole);
+
+        // Flag Canvas Drawing
+        const canvas = document.createElement('canvas');
+        canvas.width = 120;
+        canvas.height = 80;
+        const ctx = canvas.getContext('2d');
+
+        if (team === 'BRA') {
+            // Fundo Verde
+            ctx.fillStyle = '#009b3a';
+            ctx.fillRect(0, 0, 120, 80);
+            // Losango Amarelo
+            ctx.fillStyle = '#fde100';
+            ctx.beginPath();
+            ctx.moveTo(60, 10);
+            ctx.lineTo(110, 40);
+            ctx.lineTo(60, 70);
+            ctx.lineTo(10, 40);
+            ctx.fill();
+            // Círculo Azul
+            ctx.fillStyle = '#002776';
+            ctx.beginPath();
+            ctx.arc(60, 40, 18, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Listras Argentina
+            ctx.fillStyle = '#75b2dd';
+            ctx.fillRect(0, 0, 120, 80);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 26, 120, 28);
+            // Sol
+            ctx.fillStyle = '#fdb813';
+            ctx.beginPath();
+            ctx.arc(60, 40, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const flagGeo = new THREE.PlaneGeometry(15, 10);
+        const flagMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        const flag = new THREE.Mesh(flagGeo, flagMat);
+        flag.position.set(7.5, 23, 0); // Offset from pole
+        flagGroup.add(flag);
+
+        flagGroup.position.set(x, 0, z);
+        scene.add(flagGroup);
+    }
+
+    // Bandeiras nas defesas corretas
+    createFlag(-45, 150, 'BRA');  // Perto do gol do Brasil
+    createFlag(45, -150, 'ARG'); // Perto do gol da Argentina
 }
 
 function setupSocket() {
@@ -215,6 +277,10 @@ function setupUI() {
     const savedAutoOpponent = localStorage.getItem('autoOpponent') === 'true'; // Default false
     chkOpponent.checked = savedAutoOpponent;
 
+    const chkBounce = document.getElementById('ingame-chk-bounce');
+    const savedBallBounce = localStorage.getItem('ballBounce') !== 'false'; // Default true
+    chkBounce.checked = savedBallBounce;
+
     document.getElementById('btn-jogar').addEventListener('click', () => {
         startScreen.style.display = 'none';
         Sound.init();
@@ -244,9 +310,11 @@ function setupUI() {
         document.getElementById('mode-ctrl-title').innerText = "Opções 1v1";
         document.getElementById('gk-ctrl-label').style.display = 'none';
         document.getElementById('opponent-ctrl-label').style.display = 'flex';
+        document.getElementById('bounce-ctrl-label').style.display = 'flex';
 
         const autoOpponent = document.getElementById('ingame-chk-opponent').checked;
-        socket.emit('join', { playerId: selectedPlayerId, mode: '1v1', autoOpponent });
+        const ballBounce = document.getElementById('ingame-chk-bounce').checked;
+        socket.emit('join', { playerId: selectedPlayerId, mode: '1v1', autoOpponent, ballBounce });
     });
 
     // Listener para o toggle do goleiro in-game com persistência
@@ -260,6 +328,12 @@ function setupUI() {
         localStorage.setItem('autoOpponent', e.target.checked);
         if (!selectedPlayerId) return;
         socket.emit('action', { type: 'toggleOpponent', active: e.target.checked });
+    });
+
+    document.getElementById('ingame-chk-bounce').addEventListener('change', (e) => {
+        localStorage.setItem('ballBounce', e.target.checked);
+        if (!selectedPlayerId) return;
+        socket.emit('action', { type: 'toggleBallBounce', active: e.target.checked });
     });
 
     const keysPressed = new Set();
@@ -276,6 +350,7 @@ function setupUI() {
 
         let action = null;
         if (['1', '2', '3'].includes(key)) action = { type: 'kick', power: parseInt(key), isManual: true };
+        if (key === 'p') action = { type: 'pull', isManual: true };
         if (key === 't') {
             const text = prompt("Mensagem:");
             if (text) action = { type: 'speak', text, isManual: true };

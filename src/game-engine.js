@@ -4,6 +4,7 @@ export class GameEngine {
         this.mode = options.mode || 'play';
         this.autoGk = options.autoGk !== false;
         this.autoOpponent = options.autoOpponent !== false;
+        this.ballBounce = options.ballBounce !== false;
 
         this.GRID_W = 200;
         this.GRID_H = 300;
@@ -199,9 +200,20 @@ export class GameEngine {
                     if (dx !== 0) this.movePlayer(p, dx, 0);
                 }
             } else {
-                let baseZ = p.team === 'A' ? 60 : -60;
-                let dz = Math.sign(baseZ - p.z) * 10;
-                if (dz !== 0 && Math.random() > 0.5) this.movePlayer(p, 0, dz);
+                // REPOSICIONAMENTO MAIS INTELIGENTE:
+                // Só volta para a base se a bola estiver longe (> 80 unidades) 
+                // OU se a bola estiver vindo para o seu campo.
+                const isBallSafe = (p.team === 'A' && gridBallZ < p.z) || (p.team === 'B' && gridBallZ > p.z);
+                if (distToBall > 80 || !isBallSafe) {
+                    let baseZ = p.team === 'A' ? 60 : -60;
+                    let baseX = (p.id % 2 === 0) ? -30 : 30; // Distribuição lateral simples
+                    
+                    let dx = Math.sign(baseX - p.x) * 10;
+                    let dz = Math.sign(baseZ - p.z) * 10;
+                    
+                    if (dz !== 0 && Math.random() > 0.6) this.movePlayer(p, 0, dz);
+                    else if (dx !== 0 && Math.random() > 0.6) this.movePlayer(p, dx, 0);
+                }
             }
         });
     }
@@ -215,14 +227,19 @@ export class GameEngine {
             if (newX < -40 || newX > 40) return false;
             
             if (this.mode === 'train') {
-                // No modo treino as posições estão invertidas
                 if (p.team === 'A' && newZ < 120) return false; 
                 if (p.team === 'B' && newZ > -120) return false;  
             } else {
-                // Modo normal
                 if (p.team === 'A' && newZ > -120) return false; 
                 if (p.team === 'B' && newZ < 120) return false;  
             }
+        } else {
+            // Limites GERAIS para jogadores de linha (Permitido sair 2 quadrados = 20 unidades)
+            if (newX < -120 || newX > 120) return false;
+            // Permitir profundidade extra no gol (rede) ate 165 + 5 de margem
+            const isGoalWidth = newX >= -30 && newX <= 30;
+            const limitZ = isGoalWidth ? 175 : 170;
+            if (Math.abs(newZ) > limitZ) return false;
         }
         
         // Impedir que dois jogadores fiquem na mesma casa
@@ -256,7 +273,15 @@ export class GameEngine {
             const goalLimitZ = isGoalWidth ? 165 : 150;
             const isBallOutOfBounds = Math.abs(ballNextX) > 100 || (Math.abs(ballNextZ) > goalLimitZ && !isGoalWidth);
 
-            if (isBallPathBlocked || isBallOutOfBounds) {
+            if (isBallPathBlocked) return false;
+
+            if (isBallOutOfBounds) {
+                // Se a bola for sair pela lateral e o bounce estiver ativo, pipoca ela!
+                if (Math.abs(ballNextX) > 100 && this.ballBounce) {
+                    this.ball.x = ballNextX; // Temporariamente fora para o trigger detectar o lado
+                    this.triggerSideBounce();
+                    return true; // Movimento do jogador permitido, bola voou
+                }
                 return false; 
             }
 
@@ -302,14 +327,19 @@ export class GameEngine {
         if (this.isGoal) return;
         
         // Lateral do campo: +/- 100
-        if (this.ball.x > 100) {
-            this.ball.x = 200 - this.ball.x;
-            this.ball.targetX = 200 - this.ball.targetX;
-            this.ball.startX = 200 - this.ball.startX;
-        } else if (this.ball.x < -100) {
-            this.ball.x = -200 - this.ball.x;
-            this.ball.targetX = -200 - this.ball.targetX;
-            this.ball.startX = -200 - this.ball.startX;
+        if (this.ball.x > 100 || this.ball.x < -100) {
+            if (!this.triggerSideBounce()) {
+                // Rebate normal (espelhamento) se bounce estiver off
+                if (this.ball.x > 100) {
+                    this.ball.x = 200 - this.ball.x;
+                    this.ball.targetX = 200 - this.ball.targetX;
+                    this.ball.startX = 200 - this.ball.startX;
+                } else {
+                    this.ball.x = -200 - this.ball.x;
+                    this.ball.targetX = -200 - this.ball.targetX;
+                    this.ball.startX = -200 - this.ball.startX;
+                }
+            }
         }
 
         // Fundo do campo: +/- 150
@@ -465,6 +495,28 @@ export class GameEngine {
         }
     }
 
+    triggerSideBounce() {
+        if (!this.ballBounce) return false;
+        
+        const side = this.ball.x > 100 ? 1 : (this.ball.x < -100 ? -1 : 0);
+        if (side === 0) return false;
+
+        this.ball.x = side * 99; // Tira da borda imediatamente para evitar recursão ou bugs
+        this.ball.targetX = -side * (50 + Math.random() * 50); // Alvo entre o centro e a metade oposta
+        this.ball.startX = this.ball.x;
+        
+        // Desvio aleatório no Z para não ser uma linha reta chata
+        const randomZShift = (Math.random() - 0.5) * 150;
+        this.ball.targetZ = Math.max(-140, Math.min(140, this.ball.z + randomZShift));
+        this.ball.startZ = this.ball.z;
+        
+        this.ball.progress = 0; // Reinicia o progresso para o novo "pulo"
+        this.ball.speed = 2.2; // Um pouco mais rápido no pipoco
+        this.ball.arcHeight = 12;
+        this.ball.isMoving = true;
+        return true;
+    }
+
     handleAction(playerId, action) {
         if (action.type === 'toggleGk') {
             this.autoGk = action.active;
@@ -472,6 +524,10 @@ export class GameEngine {
         }
         if (action.type === 'toggleOpponent') {
             this.autoOpponent = action.active;
+            return;
+        }
+        if (action.type === 'toggleBallBounce') {
+            this.ballBounce = action.active;
             return;
         }
 
@@ -529,6 +585,46 @@ export class GameEngine {
 
                 this.ball.targetX = this.ball.x + (dirX * distance);
                 this.ball.targetZ = this.ball.z + (dirZ * distance);
+            }
+        }
+        else if (action.type === 'pull') {
+            const gridBallX = Math.round(this.ball.x / 10) * 10;
+            const gridBallZ = Math.round(this.ball.z / 10) * 10;
+            const dist = Math.max(Math.abs(p.x - gridBallX), Math.abs(p.z - gridBallZ));
+
+            if (dist <= 10 && !this.ball.isMoving) {
+                // Se o jogador estiver na frente da bola (ou adjacente), puxa ela para o outro lado
+                // Se estava na esquerda, vai pra direita. Se estava em cima, vai pra baixo.
+                const relX = gridBallX - p.x;
+                const relZ = gridBallZ - p.z;
+
+                // A bola passa por "baixo" do jogador, indo para a posição oposta à atual em relação ao jogador
+                let newBallX = p.x - relX;
+                let newBallZ = p.z - relZ;
+
+                // Se o jogador estiver EXATAMENTE em cima da bola (relX=0, relZ=0), 
+                // puxamos ela para trás da direção que ele está olhando
+                if (relX === 0 && relZ === 0) {
+                    newBallX = p.x - (p.facingX * 10 || 0);
+                    newBallZ = p.z - (p.facingZ * 10 || (p.team === 'A' ? 10 : -10));
+                }
+
+                // Validação de limites e colisões para a nova posição da bola
+                const isGoalWidth = newBallX >= -30 && newBallX <= 30;
+                const goalLimitZ = isGoalWidth ? 165 : 150;
+                const isBallOutOfBounds = Math.abs(newBallX) > 100 || (Math.abs(newBallZ) > goalLimitZ && !isGoalWidth);
+                const isPathBlocked = this.players.some(other => other.id !== p.id && other.x === newBallX && other.z === newBallZ);
+
+                if (!isBallOutOfBounds && !isPathBlocked) {
+                    this.ball.x = newBallX;
+                    this.ball.z = newBallZ;
+                    this.ball.y = 3;
+                    this.ball.isMoving = false;
+                    
+                    p.message = "Puxou!";
+                    p.messageTimeout = 1.0;
+                    p.cooldown = 0.5; // Cooldown um pouco maior para evitar spam de puxada
+                }
             }
         }
         else if (action.type === 'config') {

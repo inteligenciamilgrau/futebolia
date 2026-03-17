@@ -236,6 +236,11 @@
         </div>
 
         <div class="section">
+            <label>Ações Especiais</label>
+            <button class="btn btn-accent" style="width: 100%;" onclick="sendAction('pull')">PUXAR BOLA [P]</button>
+        </div>
+
+        <div class="section">
             <label>Configurações & Social</label>
             <input type="text" id="player-name" placeholder="Nome do Jogador...">
             <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="updateConfig()">Atualizar Nome</button>
@@ -414,6 +419,7 @@
             if (key === '1') sendAction('kick', 0, 0, 1);
             if (key === '2') sendAction('kick', 0, 0, 2);
             if (key === '3') sendAction('kick', 0, 0, 3);
+            if (key === 'p') sendAction('pull');
         });
     </script>
 </body>

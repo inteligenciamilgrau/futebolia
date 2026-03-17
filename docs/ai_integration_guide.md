@@ -85,6 +85,16 @@ Para atuar, a IA deve enviar um objeto JSON.
     - `3`: Longo/Alto (260 unidades).
 - **Nota**: O chute é disparado na direção que o jogador está olhando (`facingX`/`facingZ`).
 
+### Exemplo de Puxada:
+```json
+{
+  "roomId": "1v1",
+  "playerId": 2,
+  "type": "pull"
+}
+```
+- **Nota**: A ação `pull` (puxar) faz a bola passar por "baixo" das pernas do jogador, indo para a posição oposta à atual em relação a ele. Útil para buscar a bola quando você passou dela ou para driblar o adversário. Só funciona se o jogador estiver adjacente à bola.
+
 ---
 
 ## 🧠 3. Dicas Técnicas para a IA

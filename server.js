@@ -54,6 +54,7 @@ io.on('connection', (socket) => {
         let mode = typeof data === 'object' ? data.mode : 'play';
         let autoGk = typeof data === 'object' ? data.autoGk : true;
         let autoOpponent = typeof data === 'object' ? data.autoOpponent : true;
+        let ballBounce = typeof data === 'object' ? data.ballBounce : true;
 
         let roomId = mode; 
         if (mode === 'train') roomId = 'train';
@@ -63,7 +64,10 @@ io.on('connection', (socket) => {
         const game = rooms.get(roomId);
         if (game) {
             if (mode === 'train') game.autoGk = autoGk;
-            if (mode === '1v1') game.autoOpponent = autoOpponent;
+            if (mode === '1v1') {
+                game.autoOpponent = autoOpponent;
+                game.ballBounce = ballBounce;
+            }
         }
 
         socket.join(roomId);
