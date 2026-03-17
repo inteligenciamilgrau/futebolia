@@ -264,6 +264,11 @@
             <h2 class="player1-header">🇧🇷 BRASIL (P1)</h2>
         </div>
         
+        <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 12px; margin-bottom: 0.5rem;">
+            <input type="checkbox" id="p1-active" style="width: auto;" checked onchange="saveActivity(1)">
+            <label for="p1-active" style="cursor: pointer; margin-bottom: 0; color: var(--brasil);">ATIVAR IA (BRASIL)</label>
+        </div>
+        
         <div>
             <label>Modelo IA</label>
             <select id="p1-model"><option>Carregando modelos...</option></select>
@@ -282,10 +287,14 @@
             <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira!
 O campo tem X: 0-200 e Y: 0-300 (Xadrez: A-J, 1-15). Sua meta o GOL em Y=0.
 DICA TÁTICA: Com a bola, DESVIE do adversário para não ser desarmado.
+VISÃO (Ray Tracing): O servidor informa o que está na sua frente (gol, bola, adversário). Se estiver com a bola, o raio mostra se o caminho para o gol está livre.
 PULL: Se a bola passou de você ou está na direção errada, use {"type":"pull"} para trazê-la de volta.
 MOVIMENTO: Envie o quadrado alvo. Ex: {"thinking":"Driblando!","type":"move","target":"F8"}
-CHUTE: Use "kick" (power 1-3) apenas quando tiver ângulo para o gol.
-Responda APENAS o JSON puro.</textarea>
+CHUTE (Kick): Use EXATAMENTE este formato JSON: {"type":"kick", "power": 1}.
+- Power 1: PERTO (Mais certeiro/preciso). Use para empurrar pro gol se estiver perto.
+- Power 2: MÉDIO. Use para passes ou chutes de média distância.
+- Power 3: MUITO LONGO (Forte). Use para isolar a bola ou tentar de longe.
+IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
             <button class="btn btn-view-prompt" onclick="openPromptModal(1)">🔍 Ver Último Prompt (P1)</button>
         </div>
     </div>
@@ -307,8 +316,14 @@ Responda APENAS o JSON puro.</textarea>
         </div>
 
         <div class="panel" style="padding: 1rem; flex-direction: row; align-items: center; gap: 1rem;">
-            <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
-            <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0;">Mostrar Coordenadas (Estilo Xadrez A-J, 1-15)</label>
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 1rem;">
+                <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
+                <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0;">Coordenadas (A-J)</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" id="toggle-magnetic" style="width: auto;" checked onchange="updateMagneticBall()">
+                <label for="toggle-magnetic" style="cursor: pointer; margin-bottom: 0; color: #ffeb3b;">🧲 Bola Magnética</label>
+            </div>
         </div>
 
         <div class="game-state-card" id="arena-visual">
@@ -374,6 +389,11 @@ Responda APENAS o JSON puro.</textarea>
             <h2 class="player2-header">🇦🇷 ARGENTINA (P2)</h2>
         </div>
         
+        <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 12px; margin-bottom: 0.5rem;">
+            <input type="checkbox" id="p2-active" style="width: auto;" checked onchange="saveActivity(2)">
+            <label for="p2-active" style="cursor: pointer; margin-bottom: 0; color: var(--argentina);">ATIVAR IA (ARGENTINA)</label>
+        </div>
+
         <div>
             <label>Modelo IA</label>
             <select id="p2-model"><option>Carregando modelos...</option></select>
@@ -390,12 +410,16 @@ Responda APENAS o JSON puro.</textarea>
         <div>
             <label>Prompt de Sistema</label>
             <textarea id="p2-prompt" rows="18">¡Sos el 10 de la Selección Argentina!
-El campo es de X: 0-200 y Y: 0-300 (Ajedrez: A-J, 1-15). Tu meta el ARCO en Y=300.
+El campo es de X: 0-200 y Y: 0-300 (Ajedrez: A-J, 1-15). Tu meta o ARCO em Y=300.
 TÁCTICA: Con la pelota, GAMBETEÁ (evitá) al rival para que no te la saque.
+VISIÓN (Ray Tracing): El servidor te dice qué hay adelante (arco, pelota, rival). Si tenés la pelota, el rayo te dice se el camino al arco está libre.
 PULL: Si la pelota te pasó o está mal ubicada, usá {"type":"pull"} para acomodarla.
 MOVIMIENTO: Enviá el cuadrado objetivo. Ex: {"thinking":"¡Gambeta!","type":"move","target":"E12"}
-REMATE: Usá "kick" (power 1-3) solo cuando tengas ángulo de gol.
-Respondé SOLO el JSON puro.</textarea>
+REMATE (Kick): Usá EXACTAMENTE este formato JSON: {"type":"kick", "power": 1}.
+- Power 1: CERCA (Más certero/preciso). Usalo para empujar al arco si estás cerca.
+- Power 2: MEDIO. Usalo para pases o remates de media distancia.
+- Power 3: MUY LARGO (Fuerte). Usalo para despejar o intentar desde lejos.
+IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             <button class="btn btn-view-prompt" onclick="openPromptModal(2)">🔍 Ver Último Prompt (P2)</button>
         </div>
     </div>
@@ -431,6 +455,16 @@ Respondé SOLO el JSON puro.</textarea>
                 localStorage.setItem('arena_api_host', e.target.value);
             });
 
+            // Activity Persistence
+            const p1Active = localStorage.getItem('arena_p1_active') !== 'false'; 
+            const p2Active = localStorage.getItem('arena_p2_active') !== 'false';
+            document.getElementById('p1-active').checked = p1Active;
+            document.getElementById('p2-active').checked = p2Active;
+
+            const magActive = localStorage.getItem('arena_magnetic_ball') !== 'false';
+            document.getElementById('toggle-magnetic').checked = magActive;
+            updateMagneticBall(); // Sincroniza inicial
+
             document.getElementById('p1-model').addEventListener('change', (e) => {
                 localStorage.setItem('arena_p1_model', e.target.value);
             });
@@ -449,6 +483,17 @@ Respondé SOLO el JSON puro.</textarea>
             const visual = document.getElementById('arena-visual');
             if (isChecked) visual.classList.add('show-coords');
             else visual.classList.remove('show-coords');
+        }
+
+        function saveActivity(playerNum) {
+            const isChecked = document.getElementById(`p${playerNum}-active`).checked;
+            localStorage.setItem(`arena_p${playerNum}_active`, isChecked);
+        }
+
+        function updateMagneticBall() {
+            const isChecked = document.getElementById('toggle-magnetic').checked;
+            localStorage.setItem('arena_magnetic_ball', isChecked);
+            sendToGame(1, { type: 'toggleMagneticBall', active: isChecked });
         }
 
         function initCoordLabels() {
@@ -663,6 +708,8 @@ Respondé SOLO el JSON puro.</textarea>
                 campo: field,
                 posse_de_bola: hasBall,
                 minha_posicao: myPos.x + "," + myPos.y + " (Xadrez: " + myPos.chess + ")",
+                olhando_para: { x: meData.facingX, y: meData.facingZ },
+                visao_raytraycing: meData.ray ? { detectou: meData.ray.type, distancia: meData.ray.distance } : "nada",
                 bola: ballPos.x + "," + ballPos.y + " (Xadrez: " + ballPos.chess + ")",
                 adversario: oppPos.x + "," + oppPos.y + " (Xadrez: " + oppPos.chess + ")",
                 meu_gol: myGoal,
@@ -708,6 +755,12 @@ Respondé SOLO el JSON puro.</textarea>
                         aiResponse.dx = Math.sign(targetPos.x - myPos.x);
                         aiResponse.dz = Math.sign(targetPos.y - myPos.y);
                     }
+                }
+
+                // Garantia de Power para Chute
+                if (aiResponse.type === 'kick' && !aiResponse.power) {
+                    aiResponse.power = 1;
+                    log(`P${playerNum} não especificou 'power'. Usando nível 1 (curto).`, `log-player${playerNum}`);
                 }
                 
                 return aiResponse;
@@ -764,28 +817,50 @@ Respondé SOLO el JSON puro.</textarea>
             await fetchGameState();
             
             // Brasil turn (P1)
-            const p1Action = await askAI(1);
-            if (p1Action) {
-                if (p1Action.thinking) {
-                    log(`Brasil (Pensamento): ${p1Action.thinking}`, 'log-player1');
-                    p1Action.text = p1Action.thinking; // Mapeia para o balão de fala
+            if (document.getElementById('p1-active').checked) {
+                const p1Action = await askAI(1);
+                if (p1Action) {
+                    if (p1Action.thinking) {
+                        log(`Brasil (Pensamento): ${p1Action.thinking}`, 'log-player1');
+                        p1Action.text = p1Action.thinking;
+                    }
+                    let actionDesc = p1Action.type || p1Action.action;
+                    if (p1Action.type === 'kick') {
+                        actionDesc += ` (Power: ${p1Action.power || '?'})`;
+                    } else if (p1Action.type === 'move' && p1Action.target) {
+                        actionDesc += ` (${p1Action.target})`;
+                    } else if (p1Action.dx !== undefined || p1Action.dz !== undefined) {
+                        actionDesc += ` (dx:${p1Action.dx || 0}, dz:${p1Action.dz || 0})`;
+                    }
+
+                    log(`Brasil executa: ${actionDesc}`, 'log-player1');
+                    await sendToGame(1, p1Action);
                 }
-                log(`Brasil executa: ${p1Action.type || p1Action.action} (${p1Action.dx}, ${p1Action.dz})`, 'log-player1');
-                await sendToGame(1, p1Action);
             }
             
-            await new Promise(r => setTimeout(r, 300)); // Delay between moves
+            await new Promise(r => setTimeout(r, 300));
             await fetchGameState();
 
             // Argentina turn (P2)
-            const p2Action = await askAI(2);
-            if (p2Action) {
-                if (p2Action.thinking) {
-                    log(`Argentina (Pensamento): ${p2Action.thinking}`, 'log-player2');
-                    p2Action.text = p2Action.thinking; // Mapeia para o balão de fala
+            if (document.getElementById('p2-active').checked) {
+                const p2Action = await askAI(2);
+                if (p2Action) {
+                    if (p2Action.thinking) {
+                        log(`Argentina (Pensamento): ${p2Action.thinking}`, 'log-player2');
+                        p2Action.text = p2Action.thinking;
+                    }
+                    let actionDesc = p2Action.type || p2Action.action;
+                    if (p2Action.type === 'kick') {
+                        actionDesc += ` (Power: ${p2Action.power || '?'})`;
+                    } else if (p2Action.type === 'move' && p2Action.target) {
+                        actionDesc += ` (${p2Action.target})`;
+                    } else if (p2Action.dx !== undefined || p2Action.dz !== undefined) {
+                        actionDesc += ` (dx:${p2Action.dx || 0}, dz:${p2Action.dz || 0})`;
+                    }
+
+                    log(`Argentina executa: ${actionDesc}`, 'log-player2');
+                    await sendToGame(2, p2Action); 
                 }
-                log(`Argentina executa: ${p2Action.type || p2Action.action} (${p2Action.dx}, ${p2Action.dz})`, 'log-player2');
-                await sendToGame(2, p2Action); 
             }
             
             await fetchGameState();

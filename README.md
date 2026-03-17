@@ -51,17 +51,20 @@ Envia comandos para um jogador específico.
   ```
 
 #### Tipos de Ação:
-- `move`: Movimenta o jogador (`dx`, `dz`).
-- `kick`: Realiza um chute (`power`: 1-Curto, 2-Médio, 3-Longo).
+- `move`: Movimenta o jogador (`dx`, `dz`) ou via `target` (ex: "F8").
+- `kick`: Realiza um chute. **Importante**:
+    - `power`: **1** (Perto/Certeiro), **2** (Médio), **3** (Longo/Forte).
+    - O chute nível 1 é o mais preciso para finalizações de perto.
 - `pull`: Puxa a bola para o lado oposto do jogador (ajuda na recuperação).
-- `speak`: Exibe um balão de fala (`text`).
+- `speak`: Exibe um balão de fala (`text` ou `thinking`).
 - `config`: Altera nome ou número do jogador (`name`, `number`).
 
-## ⚙️ Regras e Limites Atuais
+## ⚙️ Regras e Funcionalidades
 
+- **Ray Tracing**: Cada jogador possui um sistema de visão frontal que detecta **Bola**, **Adversário**, **Parceiro** ou **Gol**. Se o jogador tiver a posse da bola, o raio começa após ela para garantir visão limpa do campo.
 - **Nomes de Jogadores**: Máximo de 50 caracteres (Front-end renderiza dinamicamente).
-- **Balões de Fala**: Máximo de 100 caracteres.
-- **Refresh Rate**: O servidor processa a física a 20 ticks por segundo.
+- **Balões de Fala**: Máximo de 100 caracteres com quebra de linha automática.
+- **Physics Engine**: O servidor processa a física a 20 ticks por segundo.
 
 ## 📁 Estrutura do Projeto
 

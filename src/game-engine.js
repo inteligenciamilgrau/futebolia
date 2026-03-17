@@ -5,6 +5,7 @@ export class GameEngine {
         this.autoGk = options.autoGk !== false;
         this.autoOpponent = options.autoOpponent !== false;
         this.ballBounce = options.ballBounce !== false;
+        this.magneticBall = options.magneticBall !== false; 
 
         this.GRID_W = 200;
         this.GRID_H = 300;
@@ -256,12 +257,17 @@ export class GameEngine {
         // Se a bola estiver adjacente (em qualquer uma das 8 casas ao redor ou na mesma casa)
         const isBallInReach = Math.abs(relX) <= 10 && Math.abs(relZ) <= 10;
         
-        // dot >= 0 significa que o movimento é na mesma direção geral da bola (<= 45 graus)
-        // Ou se o jogador estiver EXATAMENTE na mesma casa (relX=0, relZ=0), ele empurra com o movimento.
-        const dot = relX * dx + relZ * dz;
-        const isSweep = isBallInReach && (dot > 0 || (relX === 0 && relZ === 0)) && !this.ball.isMoving;
+        // BOLA MAGNÉTICA: Simplesmente empurra se encostar ou estiver em cima
+        // LÓGICA TRADICIONAL: Requer "isSweep" (direcional)
+        let isPushing = false;
+        if (this.magneticBall) {
+            isPushing = isBallInReach && !this.ball.isMoving;
+        } else {
+            const dot = relX * dx + relZ * dz;
+            isPushing = isBallInReach && (dot > 0 || (relX === 0 && relZ === 0)) && !this.ball.isMoving;
+        }
 
-        if (isSweep) {
+        if (isPushing) {
             let ballNextX = newX + dx;
             let ballNextZ = newZ + dz;
             
@@ -276,18 +282,22 @@ export class GameEngine {
             if (isBallPathBlocked) return false;
 
             if (isBallOutOfBounds) {
-                // Se a bola for sair pela lateral e o bounce estiver ativo, pipoca ela!
                 if (Math.abs(ballNextX) > 100 && this.ballBounce) {
-                    this.ball.x = ballNextX; // Temporariamente fora para o trigger detectar o lado
+                    this.ball.x = ballNextX; 
                     this.triggerSideBounce();
-                    return true; // Movimento do jogador permitido, bola voou
+                    isPushing = true; // Permite movimento do jogador
+                } else {
+                    isPushing = false; // Bloqueado por limite físico
                 }
-                return false; 
             }
 
-            this.ball.x = ballNextX;
-            this.ball.z = ballNextZ;
-            this.ball.y = 3; 
+            if (isPushing) {
+                this.ball.x = ballNextX;
+                this.ball.z = ballNextZ;
+                this.ball.y = 3; 
+            } else {
+                return false; // Não consegue mover porque a bola está bloqueada
+            }
         }
 
         p.x = newX;
@@ -530,6 +540,10 @@ export class GameEngine {
             this.ballBounce = action.active;
             return;
         }
+        if (action.type === 'toggleMagneticBall') {
+            this.magneticBall = action.active;
+            return;
+        }
 
         let targetPlayer = this.players.find(pl => pl.id === playerId);
         
@@ -571,17 +585,31 @@ export class GameEngine {
                 this.ball.startX = this.ball.x;
                 this.ball.startZ = this.ball.z;
                 this.ball.progress = 0;
-                this.ball.lastKickerId = p.id; // Marca quem chutou
+                this.ball.lastKickerId = p.id; 
                 
-                const power = action.power || 1;
+                // Força deve ser estritamente 1, 2 ou 3
+                let power = parseInt(action.power);
+                if (isNaN(power) || power < 1) power = 1;
+                if (power > 3) power = 3;
+
                 // Se dirX/Z não forem enviados, usa a direção que o jogador está "olhando"
-                const dirX = (action.dirX !== undefined) ? action.dirX : (p.facingX || 0);
-                const dirZ = (action.dirZ !== undefined) ? action.dirZ : (p.facingZ || (p.team === 'A' ? -1 : 1));
+                let dirX = (action.dirX !== undefined) ? action.dirX : (p.facingX || 0);
+                let dirZ = (action.dirZ !== undefined) ? action.dirZ : (p.facingZ || (p.team === 'A' ? -1 : 1));
+
+                // Normalização obrigatória da direção
+                const mag = Math.sqrt(dirX * dirX + dirZ * dirZ);
+                if (mag > 0) {
+                    dirX /= mag;
+                    dirZ /= mag;
+                } else {
+                    dirX = 0;
+                    dirZ = (p.team === 'A' ? -1 : 1);
+                }
 
                 let distance = 0;
-                if (power === 1) { distance = 80; this.ball.speed = 3.5; this.ball.arcHeight = 2.0; }
-                else if (power === 2) { distance = 160; this.ball.speed = 2.5; this.ball.arcHeight = 25.0; }
-                else if (power === 3) { distance = 260; this.ball.speed = 1.8; this.ball.arcHeight = 50.0; }
+                if (power === 1) { distance = 60; this.ball.speed = 3.0; this.ball.arcHeight = 1.0; } // Mais rasteiro e curto
+                else if (power === 2) { distance = 130; this.ball.speed = 2.2; this.ball.arcHeight = 18.0; } // Médio
+                else if (power === 3) { distance = 240; this.ball.speed = 1.6; this.ball.arcHeight = 40.0; } // Longo / Alto
 
                 this.ball.targetX = this.ball.x + (dirX * distance);
                 this.ball.targetZ = this.ball.z + (dirZ * distance);
@@ -637,14 +665,87 @@ export class GameEngine {
         }
     }
 
+    calculateRay(p) {
+        // Se não tiver direção, não tem raio
+        if (p.facingX === 0 && p.facingZ === 0) return null;
+
+        const gridBallX = Math.round(this.ball.x / 10) * 10;
+        const gridBallZ = Math.round(this.ball.z / 10) * 10;
+        const hasBall = Math.abs(p.x - gridBallX) <= 10 && Math.abs(p.z - gridBallZ) <= 10;
+
+        // O raio começa na posição do jogador, ou depois da bola se ele estiver com ela
+        let startX = p.x;
+        let startZ = p.z;
+        if (hasBall) {
+            startX += p.facingX * 15;
+            startZ += p.facingZ * 15;
+        }
+
+        const RAY_MAX_DIST = 200;
+        const step = 10;
+        let rayX = startX;
+        let rayZ = startZ;
+        let detected = "nada";
+        let distFound = RAY_MAX_DIST;
+
+        for (let d = 0; d < RAY_MAX_DIST; d += step) {
+            rayX = startX + p.facingX * d;
+            rayZ = startZ + p.facingZ * d;
+
+            // 1. Detectar Outro Jogador (Adversário ou Parceiro)
+            const other = this.players.find(other => 
+                other.id !== p.id && 
+                Math.abs(other.x - rayX) < 15 && 
+                Math.abs(other.z - rayZ) < 15
+            );
+            if (other) {
+                detected = other.team === p.team ? "parceiro" : "adversário";
+                distFound = d;
+                break;
+            }
+
+            // 2. Detectar Bola (se não estiver com ela)
+            if (!hasBall) {
+                if (Math.abs(this.ball.x - rayX) < 15 && Math.abs(this.ball.z - rayZ) < 15) {
+                    detected = "bola";
+                    distFound = d;
+                    break;
+                }
+            }
+
+            // 3. Detectar Gol
+            // Lado A ataca lado B (Z negativo), Lado B ataca lado A (Z positivo)
+            const targetGoalZ = p.team === 'A' ? -150 : 150;
+            if (p.team === 'A' && rayZ <= targetGoalZ && Math.abs(rayX) <= 40) {
+                detected = "gol";
+                distFound = d;
+                break;
+            }
+            if (p.team === 'B' && rayZ >= targetGoalZ && Math.abs(rayX) <= 40) {
+                detected = "gol";
+                distFound = d;
+                break;
+            }
+
+            // Limites do campo (se saiu do campo, para o raio)
+            if (Math.abs(rayX) > 110 || Math.abs(rayZ) > 165) break;
+        }
+
+        return { type: detected, distance: distFound, x: rayX, z: rayZ };
+    }
+
     getState() {
         return {
             fieldSize: { width: this.GRID_W + this.MARGIN*2, height: this.GRID_H + this.MARGIN*2 },
             ball: { x: this.ball.x, y: this.ball.y, z: this.ball.z, isMoving: this.ball.isMoving },
-            players: this.players.map(p => ({
-                id: p.id, team: p.team, role: p.role, x: p.x, z: p.z, name: p.name, number: p.number, message: p.message,
-                facingX: p.facingX, facingZ: p.facingZ
-            })),
+            players: this.players.map(p => {
+                const ray = this.calculateRay(p);
+                return {
+                    id: p.id, team: p.team, role: p.role, x: p.x, z: p.z, name: p.name, number: p.number, message: p.message,
+                    facingX: p.facingX, facingZ: p.facingZ,
+                    ray: ray
+                };
+            }),
             score: this.score,
             gameTime: this.gameTime,
             isGoal: this.isGoal

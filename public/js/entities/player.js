@@ -12,15 +12,25 @@ export class Player {
         
         this.nameLabel = this.createLabel(data.name || "", "#ffffff", 40, 8); 
         this.numberLabel = this.createLabel(data.number ? data.number.toString() : "", "#ffff55", 30, 8);
+        this.rayLabel = this.createLabel("", "#00ff00", 25, 4); // Novo label para o raio
         this.bubble = this.createBubble();
 
         this.mesh.add(this.nameLabel);
         this.mesh.add(this.numberLabel);
+        this.mesh.add(this.rayLabel); // Adiciona o label do raio
         this.mesh.add(this.bubble);
         
         this.nameLabel.position.y = 21;
         this.numberLabel.position.y = 18;
-        this.bubble.position.y = 45; // Aumentado de 35 para 45 para não cobrir o jogador 
+        this.rayLabel.position.y = 25; // Acima do nome
+        this.bubble.position.y = 45; 
+
+        // Adicionar o objeto da linha do raio
+        const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 10)]);
+        const rayMat = new THREE.LineBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5 });
+        this.rayLine = new THREE.Line(rayGeo, rayMat);
+        this.rayLine.position.y = 3; // Altura do chão
+        scene.add(this.rayLine);
 
         scene.add(this.mesh);
         this.update(data);
@@ -260,6 +270,39 @@ export class Player {
         if (data.message !== this._lastMsg) {
             this.updateBubble(data.message);
             this._lastMsg = data.message;
+        }
+
+        // Atualizar Raio (Ray Tracing)
+        if (data.ray) {
+            this.rayLine.visible = true;
+            this.rayLabel.visible = true;
+            
+            // Desenhar a linha do ponto zero do jogador até o ponto detectado
+            // Nota: O raio já vem com coordenadas relativas ao campo, então convertemos para locais ou setamos mundial
+            const points = [
+                new THREE.Vector3(this.mesh.position.x, 3, this.mesh.position.z),
+                new THREE.Vector3(data.ray.x, 3, data.ray.z)
+            ];
+            this.rayLine.geometry.setFromPoints(points);
+
+            // Mudar cor baseado no que detectou
+            let color = 0x00ff00; // Verde padrão
+            let icon = "👀";
+            if (data.ray.type === "adversário") { color = 0xff0000; icon = "⚔️"; } // Vermelho
+            if (data.ray.type === "bola") { color = 0xffff00; icon = "⚽"; } // Amarelo
+            if (data.ray.type === "gol") { color = 0x00ffff; icon = "🥅"; } // Ciano
+            if (data.ray.type === "nada") { color = 0x555555; icon = "🌫️"; } // Cinza
+            
+            this.rayLine.material.color.setHex(color);
+            
+            const rayText = `${icon} ${data.ray.type.toUpperCase()}`;
+            if (rayText !== this._lastRayText) {
+                this.updateLabel(this.rayLabel, rayText);
+                this._lastRayText = rayText;
+            }
+        } else {
+            this.rayLine.visible = false;
+            this.rayLabel.visible = false;
         }
     }
 }

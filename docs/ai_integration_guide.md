@@ -31,7 +31,8 @@ A IA deve consultar o endpoint abaixo para entender o que está acontecendo no c
       "z": 140,
       "facingX": 0,
       "facingZ": -1,
-      "pos_xadrez": "E14"
+      "pos_xadrez": "E14",
+      "ray": { "type": "gol", "distance": 120, "x": 0, "z": -150 }
     },
     ...
   ],
@@ -49,6 +50,7 @@ A IA deve consultar o endpoint abaixo para entender o que está acontecendo no c
 - **Eixo Y**: Altura da bola. Se `y > 20`, a bola está no ar (difícil de interceptar).
 - **Coordenadas de Xadrez**: Para facilitar a percepção espacial, o servidor também envia posições mapeadas em um grid de **A-J** (largura) e **1-15** (comprimento).
 - **Posse de Bola**: O campo `posse_de_bola` indica se o jogador atual está perto o suficiente para chutar ou puxar.
+- **Ray Tracing**: O campo `ray` informa o que o jogador está vendo na sua frente (gol, bola, adversário ou nada) e a que distância. Se o jogador tiver a bola, o raio começa após a bola.
 
 ---
 
@@ -73,20 +75,26 @@ Para atuar, a IA deve enviar um objeto JSON.
 - `thinking`: **Opcional**. O texto enviado aqui aparecerá em um balão de fala sobre o jogador.
 - `isManual`: **Obrigatório** para assumir o controle e desativar a IA interna temporariamente.
 
-### Exemplo de Chute:
+### Exemplo de Chute (Kick):
+A IA deve enviar o comando de chute no formato JSON. O chute é disparado na direção que o jogador está olhando.
+
 ```json
 {
   "roomId": "1v1",
   "playerId": 2,
   "type": "kick",
-  "power": 2
+  "power": 1
 }
 ```
-- `power`: 
-    - `1`: Curto/Rasteiro (80 unidades).
-    - `2`: Médio/Médio (160 unidades).
-    - `3`: Longo/Alto (260 unidades).
-- **Nota**: O chute é disparado na direção que o jogador está olhando (`facingX`/`facingZ`).
+- **Níveis de Força (Power)**:
+    - **1: Perto / Certeiro** (80 unidades). É o mais preciso. Use quando estiver na cara do gol ou para passes curtos.
+    - **2: Médio** (160 unidades). Força intermediária para cruzamentos ou chutes de longe.
+    - **3: Muito Longo / Forte** (260 unidades). Chute de força máxima. Menos preciso, use para isolar a bola ou tentar o gol do meio de campo.
+
+⚠️ **IMPORTANTE**:
+- A IA **NUNCA** deve usar sintaxe de função como `kick(1)` ou `kick(100, 300)`.
+- O valor de `power` deve ser **estritamente** um número inteiro entre 1 e 3.
+- Não envie coordenadas `x` ou `z` dentro do comando de chute.
 
 ### Exemplo de Puxada:
 ```json
@@ -147,8 +155,9 @@ def play_loop():
 
 ## ⚠️ 4. Problemas Comuns (Pitfalls)
 
-1. **Hallucinação de Comandos**: A IA **NUNCA** deve enviar comandos como `kick(1)` ou `move(1, 0)`. Toda comunicação deve ser um **JSON válido**.
-   - **Errado**: `{"action": "kick(2)"}`
+1. **Hallucinação de Comandos**: A IA **NUNCA** deve enviar comandos como `kick(1)` ou `kick(100, 300)`. Toda comunicação deve ser um **JSON válido**.
+   - **Errado**: `{"action": "kick(2)"}` ou `{"type": "kick", "x": 100, "z": 300}`
    - **Certo**: `{"type": "kick", "power": 2}`
-2. **Campos Extras**: Não invente campos no JSON. Siga estritamente o esquema esperado (`type`, `dx`, `dz`, `power`, `thinking`).
-3. **Ponto Flutuante**: Para `dx` e `dz`, use apenas `-1`, `0` ou `1`. O servidor não processa frações nessas ações discretas.
+2. **Força do Chute**: A força (`power`) deve ser **obrigatoriamente 1, 2 ou 3**. Valores fora desse intervalo serão ignorados ou limitados.
+3. **Campos Extras**: Não invente campos no JSON. Siga estritamente o esquema esperado (`type`, `dx`, `dz`, `power`, `thinking`).
+4. **Ponto Flutuante**: Para `dx` e `dz`, use apenas `-1`, `0` ou `1`. O servidor não processa frações nessas ações discretas.
