@@ -682,21 +682,52 @@ export class GameEngine {
         }
 
         const RAY_MAX_DIST = 200;
-        const step = 10;
+        const step = 2; // Reduzido de 10 para 2 para mais precisão
         let rayX = startX;
         let rayZ = startZ;
         let detected = "nada";
         let distFound = RAY_MAX_DIST;
 
+        // 3. Cálculo Matemático de Interseção com o GOL (Melhor Precisão)
+        const targetGoalZ = p.team === 'A' ? -150 : 150;
+        let goalDist = Infinity;
+        
+        // Se a direção do raio aponta para o Z do gol alvo
+        const isPointingToGoal = (p.team === 'A' && p.facingZ < 0) || (p.team === 'B' && p.facingZ > 0);
+        
+        if (isPointingToGoal) {
+            // Distância Z até a linha do gol
+            const dz = targetGoalZ - startZ;
+            // Distância total do raio (d = dz / facingZ)
+            const dIntersect = dz / p.facingZ;
+            
+            if (dIntersect > 0 && dIntersect <= RAY_MAX_DIST) {
+                // Posição X exata na linha do gol
+                const intersectX = startX + p.facingX * dIntersect;
+                if (Math.abs(intersectX) <= 30) {
+                    goalDist = dIntersect;
+                }
+            }
+        }
+
         for (let d = 0; d < RAY_MAX_DIST; d += step) {
+            // Se o raio encontrou o GOL nesta distância e nada bloqueou antes
+            if (d >= goalDist) {
+                detected = "gol";
+                distFound = d;
+                rayX = startX + p.facingX * d;
+                rayZ = startZ + p.facingZ * d;
+                break;
+            }
+
             rayX = startX + p.facingX * d;
             rayZ = startZ + p.facingZ * d;
 
             // 1. Detectar Outro Jogador (Adversário ou Parceiro)
             const other = this.players.find(other => 
                 other.id !== p.id && 
-                Math.abs(other.x - rayX) < 15 && 
-                Math.abs(other.z - rayZ) < 15
+                Math.abs(other.x - rayX) < 7 && 
+                Math.abs(other.z - rayZ) < 7
             );
             if (other) {
                 detected = other.team === p.team ? "parceiro" : "adversário";
@@ -706,29 +737,17 @@ export class GameEngine {
 
             // 2. Detectar Bola (se não estiver com ela)
             if (!hasBall) {
-                if (Math.abs(this.ball.x - rayX) < 15 && Math.abs(this.ball.z - rayZ) < 15) {
+                if (Math.abs(this.ball.x - rayX) < 5 && Math.abs(this.ball.z - rayZ) < 5) {
                     detected = "bola";
                     distFound = d;
                     break;
                 }
             }
 
-            // 3. Detectar Gol
-            // Lado A ataca lado B (Z negativo), Lado B ataca lado A (Z positivo)
-            const targetGoalZ = p.team === 'A' ? -150 : 150;
-            if (p.team === 'A' && rayZ <= targetGoalZ && Math.abs(rayX) <= 40) {
-                detected = "gol";
-                distFound = d;
-                break;
-            }
-            if (p.team === 'B' && rayZ >= targetGoalZ && Math.abs(rayX) <= 40) {
-                detected = "gol";
-                distFound = d;
-                break;
-            }
-
-            // Limites do campo (se saiu do campo, para o raio)
-            if (Math.abs(rayX) > 110 || Math.abs(rayZ) > 165) break;
+            // Limites do campo (se saiu do campo lateralmente antes de achar algo, para o raio)
+            if (Math.abs(rayX) > 110) break;
+            // Se passou da linha do gol sem detectar gol (pode ser o gol adversário ou fundo)
+            if (Math.abs(rayZ) > 165) break;
         }
 
         return { type: detected, distance: distFound, x: rayX, z: rayZ };

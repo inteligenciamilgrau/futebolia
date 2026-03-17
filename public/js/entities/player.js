@@ -22,8 +22,8 @@ export class Player {
         
         this.nameLabel.position.y = 21;
         this.numberLabel.position.y = 18;
-        this.rayLabel.position.y = 25; // Acima do nome
-        this.bubble.position.y = 45; 
+        this.rayLabel.position.y = 30; // Aumentado de 25 para 30 para não encostar no nome
+        this.bubble.position.y = 60; // Aumentado de 45 para 60 para ficar acima do ray tracing
 
         // Adicionar o objeto da linha do raio
         const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 10)]);
