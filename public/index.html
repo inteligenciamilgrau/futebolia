@@ -19,7 +19,13 @@
 <body>
 
     <div id="start-screen">
-        <button id="start-btn">ENTRAR NO JOGO</button>
+        <div class="menu-container">
+            <button id="btn-jogar" class="start-btn">JOGAR PARTIDA</button>
+            <div class="train-options">
+                <button id="btn-mano" class="start-btn mano-btn">MANO A MANO</button>
+                <button id="btn-treinar" class="start-btn trn-btn">MODO TREINO</button>
+            </div>
+        </div>
     </div>
 
     <div id="ui-layer">
@@ -31,6 +37,20 @@
             </div>
             <span id="score-b">0</span>&nbsp; <span class="time-b">ARGENTINA</span>
         </div>
+        
+        <!-- Controles exclusivos do Modo Treino / 1v1 (Ocultos por padrão) -->
+        <div id="training-controls" style="display: none;">
+            <h3 id="mode-ctrl-title">Opções</h3>
+            <label id="gk-ctrl-label" class="gk-toggle" style="display: none; color: #333; text-shadow: none;">
+                <input type="checkbox" id="ingame-chk-goleiro" checked>
+                <span>Goleiro Automático</span>
+            </label>
+            <label id="opponent-ctrl-label" class="gk-toggle" style="display: none; color: #333; text-shadow: none;">
+                <input type="checkbox" id="ingame-chk-opponent" checked>
+                <span>Oponente com IA</span>
+            </label>
+        </div>
+
         <div id="instructions">
             <h3>Controles</h3>
             <ul>

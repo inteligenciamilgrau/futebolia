@@ -135,10 +135,10 @@ function buildPitch() {
     addLine(2, 35, 40, 137.5); 
 
     // Laterais e Fundos
-    addLine(2, 312, -105, 0);  
-    addLine(2, 312, 105, 0);   
-    addLine(212, 2, 0, -155);  
-    addLine(212, 2, 0, 155);   
+    addLine(2, 302, -100, 0);  
+    addLine(2, 302, 100, 0);   
+    addLine(202, 2, 0, -150);  
+    addLine(202, 2, 0, 150);   
 
     // Círculo Central
     const ringGeo = new THREE.RingGeometry(28, 30, 32);
@@ -169,8 +169,8 @@ function buildPitch() {
         scene.add(goalGroup);
     }
 
-    createGoal(-155); 
-    createGoal(155);  
+    createGoal(-150); 
+    createGoal(150);  
 }
 
 function setupSocket() {
@@ -204,33 +204,100 @@ function setupSocket() {
 }
 
 function setupUI() {
-    document.getElementById('start-btn').addEventListener('click', () => {
-        document.getElementById('start-screen').style.display = 'none';
+    const startScreen = document.getElementById('start-screen');
+    const ingameChkGk = document.getElementById('ingame-chk-goleiro');
+
+    // Carregar preferência salva do goleiro
+    const savedAutoGk = localStorage.getItem('autoGk') !== 'false'; // Default true
+    ingameChkGk.checked = savedAutoGk;
+
+    document.getElementById('btn-jogar').addEventListener('click', () => {
+        startScreen.style.display = 'none';
         Sound.init();
-        // Escolha de ID simplificada para teste
         selectedPlayerId = prompt("Escolha seu Player ID (1-10):", "2");
-        if (selectedPlayerId) socket.emit('join', parseInt(selectedPlayerId));
+        if (selectedPlayerId) socket.emit('join', { playerId: parseInt(selectedPlayerId), mode: 'play' });
     });
+
+    document.getElementById('btn-treinar').addEventListener('click', () => {
+        startScreen.style.display = 'none';
+        Sound.init();
+        selectedPlayerId = 1; 
+        
+        document.getElementById('training-controls').style.display = 'block';
+        document.getElementById('mode-ctrl-title').innerText = "Opções de Treino";
+        document.getElementById('gk-ctrl-label').style.display = 'flex';
+        document.getElementById('opponent-ctrl-label').style.display = 'none';
+        
+        socket.emit('join', { playerId: selectedPlayerId, mode: 'train', autoGk: ingameChkGk.checked });
+    });
+
+    document.getElementById('btn-mano').addEventListener('click', () => {
+        startScreen.style.display = 'none';
+        Sound.init();
+        selectedPlayerId = 1; 
+
+        document.getElementById('training-controls').style.display = 'block';
+        document.getElementById('mode-ctrl-title').innerText = "Opções 1v1";
+        document.getElementById('gk-ctrl-label').style.display = 'none';
+        document.getElementById('opponent-ctrl-label').style.display = 'flex';
+
+        const autoOpponent = document.getElementById('ingame-chk-opponent').checked;
+        socket.emit('join', { playerId: selectedPlayerId, mode: '1v1', autoOpponent });
+    });
+
+    // Listener para o toggle do goleiro in-game com persistência
+    ingameChkGk.addEventListener('change', (e) => {
+        localStorage.setItem('autoGk', e.target.checked);
+        if (!selectedPlayerId) return;
+        socket.emit('action', { type: 'toggleGk', active: e.target.checked });
+    });
+
+    document.getElementById('ingame-chk-opponent').addEventListener('change', (e) => {
+        if (!selectedPlayerId) return;
+        socket.emit('action', { type: 'toggleOpponent', active: e.target.checked });
+    });
+
+    const keysPressed = new Set();
+    
+    const moveKeys = {
+        'w': { dx: -1, dz: 0 }, 's': { dx: 1, dz: 0 }, 'a': { dx: 0, dz: 1 }, 'd': { dx: 0, dz: -1 },
+        'arrowup': { dx: -1, dz: 0 }, 'arrowdown': { dx: 1, dz: 0 }, 'arrowleft': { dx: 0, dz: 1 }, 'arrowright': { dx: 0, dz: -1 }
+    };
 
     window.addEventListener('keydown', (e) => {
         if (!selectedPlayerId) return;
         const key = e.key.toLowerCase();
+        keysPressed.add(key);
+
         let action = null;
-
-        if (key === 'w' || key === 'arrowup') action = { type: 'move', dx: -1, dz: 0, isManual: true };
-        if (key === 's' || key === 'arrowdown') action = { type: 'move', dx: 1, dz: 0, isManual: true };
-        if (key === 'a' || key === 'arrowleft') action = { type: 'move', dx: 0, dz: 1, isManual: true };
-        if (key === 'd' || key === 'arrowright') action = { type: 'move', dx: 0, dz: -1, isManual: true };
-
         if (['1', '2', '3'].includes(key)) action = { type: 'kick', power: parseInt(key), isManual: true };
-        
-        if (key === 't') { // Tecla T para falar
+        if (key === 't') {
             const text = prompt("Mensagem:");
             if (text) action = { type: 'speak', text, isManual: true };
         }
-
         if (action) socket.emit('action', action);
     });
+
+    window.addEventListener('keyup', (e) => {
+        keysPressed.delete(e.key.toLowerCase());
+    });
+
+    // Loop de movimento mais lento (200ms) para ritmo fixo
+    setInterval(() => {
+        if (!selectedPlayerId) return;
+        
+        let dx = 0;
+        let dz = 0;
+        
+        if (keysPressed.has('w') || keysPressed.has('arrowup')) dx -= 1;
+        if (keysPressed.has('s') || keysPressed.has('arrowdown')) dx += 1;
+        if (keysPressed.has('a') || keysPressed.has('arrowleft')) dz += 1;
+        if (keysPressed.has('d') || keysPressed.has('arrowright')) dz -= 1;
+
+        if (dx !== 0 || dz !== 0) {
+            socket.emit('action', { type: 'move', dx, dz, isManual: true });
+        }
+    }, 200); 
 }
 
 function animate() {

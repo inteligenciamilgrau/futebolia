@@ -1,4 +1,3 @@
-
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -16,20 +15,29 @@ const io = new Server(httpServer);
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json()); // Habilita parse de JSON no Body
+app.use(express.json());
 
-const game = new GameEngine();
+const rooms = new Map(); // roomId -> GameEngine
+rooms.set('play', new GameEngine({ mode: 'play' }));
+rooms.set('train', new GameEngine({ mode: 'train' }));
+rooms.set('1v1', new GameEngine({ mode: '1v1' }));
 
-// Endpoint para pedir o estado do jogo via HTTP (como solicitado)
+// Endpoints HTTP
 app.get('/state', (req, res) => {
+    const roomId = req.query.roomId || 'play';
+    const game = rooms.get(roomId);
+    if (!game) return res.status(404).json({ error: "Room not found" });
     res.json(game.getState());
 });
 
-// Endpoint para enviar comandos (API REST)
 app.post('/action', (req, res) => {
     const action = req.body;
-    const targetId = action.playerId;
+    const roomId = action.roomId || 'play';
+    const game = rooms.get(roomId);
     
+    if (!game) return res.status(404).json({ error: "Room not found" });
+
+    const targetId = action.playerId;
     if (targetId) {
         game.handleAction(targetId, action);
         res.json({ success: true, state: game.getState() });
@@ -41,16 +49,36 @@ app.post('/action', (req, res) => {
 io.on('connection', (socket) => {
     console.log('Cliente conectado:', socket.id);
 
-    // Enviar o estado inicial
-    socket.emit('init', game.getState());
+    socket.on('join', (data) => {
+        let playerId = typeof data === 'object' ? data.playerId : data;
+        let mode = typeof data === 'object' ? data.mode : 'play';
+        let autoGk = typeof data === 'object' ? data.autoGk : true;
+        let autoOpponent = typeof data === 'object' ? data.autoOpponent : true;
 
-    socket.on('join', (playerId) => {
+        let roomId = mode; 
+        if (mode === 'train') roomId = 'train';
+        if (mode === 'play') roomId = 'play';
+        
+        // Aplica configurações se a sala já existir
+        const game = rooms.get(roomId);
+        if (game) {
+            if (mode === 'train') game.autoGk = autoGk;
+            if (mode === '1v1') game.autoOpponent = autoOpponent;
+        }
+
+        socket.join(roomId);
+        socket.roomId = roomId;
         socket.playerId = playerId;
-        console.log(`Socket ${socket.id} assumiu jogador ${playerId}`);
+        console.log(`Socket ${socket.id} entrou na sala ${roomId} como jogador ${playerId}`);
+        
+        socket.emit('init', rooms.get(roomId).getState());
     });
 
     socket.on('action', (action) => {
-        // A ferramenta de teste envia playerId explicitamente
+        if (!socket.roomId) return;
+        const game = rooms.get(socket.roomId);
+        if (!game) return;
+
         const targetId = action.playerId || socket.playerId;
         if (targetId) {
             game.handleAction(targetId, action);
@@ -59,18 +87,23 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('Cliente desconectado:', socket.id);
+        if (socket.roomId && socket.roomId.startsWith('train_')) {
+            rooms.delete(socket.roomId);
+            console.log(`Sala de treino ${socket.roomId} encerrada.`);
+        }
     });
 });
 
-// Game Loop no servidor
 let lastTick = Date.now();
 setInterval(() => {
     const now = Date.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     
-    const state = game.update(dt);
-    io.emit('state-update', state);
+    for (const [roomId, game] of rooms.entries()) {
+        const state = game.update(dt);
+        io.to(roomId).emit('state-update', state);
+    }
 }, 1000 / 20); 
 
 httpServer.listen(PORT, () => {

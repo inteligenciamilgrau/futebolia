@@ -186,6 +186,16 @@
         <h1>⚽ FuteboliA API Test</h1>
 
         <div class="section">
+            <label>Configuração da Sala</label>
+            <select id="room-id" onchange="fetchState()">
+                <option value="play">Modo Play (Brasil x Argentina)</option>
+                <option value="train" selected>Modo Treino (Treinador x Goleiro)</option>
+                <option value="1v1">Modo 1v1 (Mano a Mano)</option>
+            </select>
+            <button class="btn btn-primary" style="width: 100%;" onclick="joinRoom()">Entrar na Sala (Socket)</button>
+        </div>
+
+        <div class="section">
             <label>Estado do Jogo (API /state)</label>
             <div id="game-state-display" class="state-box">Aguardando dados...</div>
             <button class="btn btn-primary" style="width: 100%;" onclick="fetchState()">Pedir Estado do Jogo!</button>
@@ -201,11 +211,18 @@
 
         <div class="section">
             <label>Movimentação</label>
-            <div class="d-pad">
+            <div class="d-pad" style="grid-template-areas: 'nw up ne' 'left . right' 'sw down se'; width: 170px;">
+                <button class="btn btn-nw" onclick="sendAction('move', -1, 1)">◤</button>
                 <button class="btn btn-up" onclick="sendAction('move', -1, 0)">▲</button>
+                <button class="btn btn-ne" onclick="sendAction('move', -1, -1)">◥</button>
+                
                 <button class="btn btn-left" onclick="sendAction('move', 0, 1)">◀</button>
+                <button class="btn" onclick="sendAction('move', 0, 0)">•</button>
                 <button class="btn btn-right" onclick="sendAction('move', 0, -1)">▶</button>
+                
+                <button class="btn btn-sw" onclick="sendAction('move', 1, 1)">◣</button>
                 <button class="btn btn-down" onclick="sendAction('move', 1, 0)">▼</button>
+                <button class="btn btn-se" onclick="sendAction('move', 1, -1)">◢</button>
             </div>
         </div>
 
@@ -237,11 +254,13 @@
         const socket = io();
         const statusEl = document.getElementById('connection-status');
         const playerIdInput = document.getElementById('player-id');
+        const roomIdInput = document.getElementById('room-id');
         const stateDisplay = document.getElementById('game-state-display');
 
         socket.on('connect', () => {
             statusEl.classList.add('online');
             statusEl.innerHTML = '<span></span> Conectado ao Servidor (Socket)';
+            joinRoom(); // Tenta entrar automaticamente conforme o select
             fetchState();
         });
 
@@ -250,14 +269,20 @@
             statusEl.innerHTML = '<span></span> Desconectado';
         });
 
-        // Atualização automática via Socket para ver o estado fluindo
         socket.on('state-update', (state) => {
             updateStateDisplay(state);
         });
 
+        function joinRoom() {
+            const id = parseInt(playerIdInput.value);
+            const rId = roomIdInput.value;
+            socket.emit('join', { playerId: id, mode: rId });
+        }
+
         async function fetchState() {
             try {
-                const response = await fetch('/state');
+                const rId = roomIdInput.value;
+                const response = await fetch(`/state?roomId=${rId}`);
                 const state = await response.json();
                 updateStateDisplay(state);
             } catch (err) {
@@ -271,8 +296,7 @@
             const myPlayerId = parseInt(playerIdInput.value);
             const myPlayer = state.players.find(p => p.id === myPlayerId);
             
-            // Highlight current player info in the beginning
-            let displayString = `[ID CONECTADO: ${myPlayerId}]\n`;
+            let displayString = `[ROOM: ${roomIdInput.value.toUpperCase()}] [ID CONECTADO: ${myPlayerId}]\n`;
             if (myPlayer) {
                 displayString += `POSIÇÃO ATUAL: X:${myPlayer.x} Z:${myPlayer.z}\n`;
             } else {
@@ -300,7 +324,9 @@
 
         async function sendAction(type, dx, dz, power) {
             const id = parseInt(playerIdInput.value);
+            const rId = roomIdInput.value;
             const action = {
+                roomId: rId,
                 playerId: id,
                 type: type,
                 isManual: true
@@ -313,7 +339,6 @@
                 action.power = power;
             }
 
-            // Enviamos via POST para testar o endpoint conforme solicitado
             try {
                 const response = await fetch('/action', {
                     method: 'POST',
@@ -331,7 +356,6 @@
             } catch (err) {
                 console.error("Erro no POST /action:", err);
                 stateDisplay.innerText = "ERRO NA API (POST /action): " + err.message + "\nTentando via Socket...";
-                // Fallback para socket se a API REST falhar
                 socket.emit('action', action);
             }
         }
@@ -342,6 +366,7 @@
             if (!name) return;
             
             const action = {
+                roomId: roomIdInput.value,
                 playerId: id,
                 type: 'config',
                 name: name,
@@ -362,6 +387,7 @@
             if (!text) return;
 
             const action = {
+                roomId: roomIdInput.value,
                 playerId: id,
                 type: 'speak',
                 text: text,

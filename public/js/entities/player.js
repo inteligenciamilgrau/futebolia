@@ -197,11 +197,10 @@ export class Player {
             this.armL.rotation.x = -swing;
             this.armR.rotation.x = swing;
             
-            // Rotação simplificada baseada no movimento
-            if (Math.abs(dx) > Math.abs(dz)) {
-                this.mesh.rotation.y = dx > 0 ? Math.PI/2 : -Math.PI/2;
-            } else {
-                this.mesh.rotation.y = dz > 0 ? 0 : Math.PI;
+            // Rotação baseada na direção que o servidor informou (8 direções)
+            if (data.facingX !== undefined && data.facingZ !== undefined) {
+                // THREE.js usa o eixo Y como vertical, então rotacionamos em torno dele
+                this.mesh.rotation.y = Math.atan2(data.facingX, data.facingZ);
             }
         } else {
             this.walkCycle = 0;
