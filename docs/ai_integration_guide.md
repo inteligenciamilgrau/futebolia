@@ -1,0 +1,128 @@
+# 🤖 FuteboliA: Guia de Integração para IAs
+
+Este documento descreve como uma Inteligência Artificial deve interagir com o servidor do FuteboliA para perceber o estado do jogo e executar ações.
+
+## 📡 Visão Geral da Comunicação
+
+A comunicação é feita via requisições **HTTP REST**. A IA deve operar em um loop de:
+1. **Percepção**: Obter o estado atual (`GET /state`).
+2. **Raciocínio**: Analisar posições de jogadores e bola.
+3. **Ação**: Enviar um comando de movimento ou chute (`POST /action`).
+
+---
+
+## 🔍 1. Percepção (Obter Estado)
+
+A IA deve consultar o endpoint abaixo para entender o que está acontecendo no campo.
+
+**Endpoint:** `GET /state?roomId=1v1` (ou `play`/`train`)
+
+### Formato da Resposta (JSON):
+```json
+{
+  "fieldSize": { "width": 200, "height": 300 },
+  "ball": { "x": 10, "y": 3, "z": -40, "isMoving": false },
+  "players": [
+    {
+      "id": 1,
+      "team": "A",
+      "x": 0,
+      "z": 140,
+      "facingX": 0,
+      "facingZ": -1
+    },
+    ...
+  ],
+  "score": { "A": 0, "B": 2 },
+  "gameTime": 240,
+  "isGoal": false
+}
+```
+
+### Elementos Chave para a IA:
+- **Coordenadas**: O campo vai de **X: -100 a 100** e **Z: -150 a 150**.
+- **Equipes**: 
+    - **Time A (Brasil)**: Defende o lado `Z=150` e ataca para `Z=-150`.
+    - **Time B (Argentina)**: Defende o lado `Z=-150` e ataca para `Z=150`.
+- **Eixo Y**: Altura da bola. Se `y > 20`, a bola está no ar (difícil de interceptar).
+
+---
+
+## 🎮 2. Execução de Ações
+
+Para atuar, a IA deve enviar um objeto JSON.
+
+**Endpoint:** `POST /action`
+
+### Exemplo de Movimento:
+```json
+{
+  "roomId": "1v1",
+  "playerId": 2,
+  "type": "move",
+  "dx": 1, 
+  "dz": 0,
+  "isManual": true
+}
+```
+- `dx` / `dz`: Valores entre `-1`, `0` e `1`. Cada comando move o jogador **10 unidades**.
+- `isManual`: **Obrigatório** para assumir o controle e desativar a IA interna temporariamente.
+
+### Exemplo de Chute:
+```json
+{
+  "roomId": "1v1",
+  "playerId": 2,
+  "type": "kick",
+  "power": 2
+}
+```
+- `power`: 
+    - `1`: Curto/Rasteiro (80 unidades).
+    - `2`: Médio/Médio (160 unidades).
+    - `3`: Longo/Alto (260 unidades).
+- **Nota**: O chute é disparado na direção que o jogador está olhando (`facingX`/`facingZ`).
+
+---
+
+## 🧠 3. Dicas Técnicas para a IA
+
+1. **Loop de Controle**: O servidor processa a física a cada **50ms (20 FPS)**. Não adianta enviar comandos mais rápido que isso; um intervalo de 100ms a 200ms por ação é o ideal.
+2. **Condução de Bola**: Se você se mover para a mesma casa que a bola, você a "empurrará".
+3. **Mapeamento 1v1**: No modo Mano a Mano:
+    - `playerId: 1` controla o Brasil.
+    - `playerId: 2` (via API) controla a Argentina.
+4. **Cálculo de Distância**: Use a distância de Manhattan ou Euclidiana para decidir se deve correr para a bola ou voltar para a defesa.
+
+---
+
+## 🛠️ Exemplo em Python (Snippet)
+
+```python
+import requests
+import time
+
+URL = "http://localhost:3000"
+
+def play_loop():
+    while True:
+        # 1. Ver
+        state = requests.get(f"{URL}/state?roomId=1v1").json()
+        ball = state['ball']
+        me = next(p for p in state['players'] if p['id'] == 1)
+        
+        # 2. Pensar (Lógica simples: perseguir a bola)
+        dx = 1 if ball['x'] > me['x'] else -1 if ball['x'] < me['x'] else 0
+        dz = 1 if ball['z'] > me['z'] else -1 if ball['z'] < me['z'] else 0
+        
+        # 3. Agir
+        requests.post(f"{URL}/action", json={
+            "roomId": "1v1",
+            "playerId": 1,
+            "type": "move",
+            "dx": dx, "dz": dz,
+            "isManual": True
+        })
+        
+        time.sleep(0.1) # Aguarda 100ms
+```
