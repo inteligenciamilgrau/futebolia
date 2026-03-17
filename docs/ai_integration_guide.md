@@ -22,6 +22,7 @@ A IA deve consultar o endpoint abaixo para entender o que está acontecendo no c
 {
   "fieldSize": { "width": 200, "height": 300 },
   "ball": { "x": 10, "y": 3, "z": -40, "isMoving": false },
+  "posse_de_bola": false,
   "players": [
     {
       "id": 1,
@@ -29,7 +30,8 @@ A IA deve consultar o endpoint abaixo para entender o que está acontecendo no c
       "x": 0,
       "z": 140,
       "facingX": 0,
-      "facingZ": -1
+      "facingZ": -1,
+      "pos_xadrez": "E14"
     },
     ...
   ],
@@ -45,6 +47,8 @@ A IA deve consultar o endpoint abaixo para entender o que está acontecendo no c
     - **Time A (Brasil)**: Defende o lado `Z=150` e ataca para `Z=-150`.
     - **Time B (Argentina)**: Defende o lado `Z=-150` e ataca para `Z=150`.
 - **Eixo Y**: Altura da bola. Se `y > 20`, a bola está no ar (difícil de interceptar).
+- **Coordenadas de Xadrez**: Para facilitar a percepção espacial, o servidor também envia posições mapeadas em um grid de **A-J** (largura) e **1-15** (comprimento).
+- **Posse de Bola**: O campo `posse_de_bola` indica se o jogador atual está perto o suficiente para chutar ou puxar.
 
 ---
 

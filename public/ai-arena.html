@@ -191,6 +191,69 @@
         }
 
         @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+        .coord-label {
+            font-size: 8px;
+            fill: #94a3b8;
+            font-weight: 700;
+            user-select: none;
+            pointer-events: none;
+            display: none; /* Default hidden */
+        }
+        .show-coords .coord-label { display: block; }
+        /* Prompt Modal */
+        #prompt-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: none;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            gap: 1rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #prompt-body {
+            flex: 1;
+            background: #000;
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #10b981;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-view-prompt {
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.7rem;
+            padding: 0.4rem 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn-view-prompt:hover { background: rgba(255, 255, 255, 0.2); }
     </style>
 </head>
 <body>
@@ -217,11 +280,12 @@
         <div>
             <label>Prompt de Sistema</label>
             <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira! Sinta a emoção do Maracanã!
-O campo tem X: 0-200 e Y: 0-300.
-Sua meta é o gol em Y=0. Você defende o gol em Y=300.
-No campo "thinking", escreva pensamentos empolgantes de um jogador. No resto do JSON, seja técnico.
-Responda APENAS um JSON: {"thinking": "emoção", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.
-Nota: "pull" faz a bola passar por baixo de você se você estiver na frente dela. "dz" mede profundidade.</textarea>
+O campo tem X: 0-200 e Y: 0-300. Use as COORDENADAS DE XADREZ (A-J, 1-15).
+Sua meta é o gol em Y=0 (linha 1). Você defende o gol em Y=300 (linha 15).
+Se "posse_de_bola" for true, CHUTE (kick) para o gol alvo ou use "pull" para driblar.
+No campo "thinking", escreva frases CURTAS e marcantes (máximo 5 palavras). No resto do JSON, seja técnico.
+Responda APENAS um JSON: {"thinking": "Vou pra cima!", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+            <button class="btn btn-view-prompt" onclick="openPromptModal(1)">🔍 Ver Último Prompt (P1)</button>
         </div>
     </div>
 
@@ -239,6 +303,11 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
                 </div>
             </div>
             <button class="btn" style="margin-left: 1rem; padding: 0.75rem 1.5rem;" onclick="refreshModels()">🔄 Sync</button>
+        </div>
+
+        <div class="panel" style="padding: 1rem; flex-direction: row; align-items: center; gap: 1rem;">
+            <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
+            <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0;">Mostrar Coordenadas (Estilo Xadrez A-J, 1-15)</label>
         </div>
 
         <div class="game-state-card" id="arena-visual">
@@ -275,6 +344,11 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
                     <rect width="20" height="15" fill="#75b2dd" stroke="white" stroke-width="1"/>
                     <rect y="5" width="20" height="5" fill="white"/>
                 </g>
+
+                <!-- Chess Coord Labels -->
+                <g id="coord-labels-x"></g>
+                <g id="coord-labels-y"></g>
+
                 <!-- Players & Ball added by JS -->
                 <g id="dynamic-elements"></g>
             </svg>
@@ -314,24 +388,43 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
 
         <div>
             <label>Prompt de Sistema</label>
-            <textarea id="p2-prompt" rows="18">Você é o 10 da Argentina! Jogue com o coração e a raça argentina!
-O campo tem X: 0-200 e Y: 0-300.
-Sua meta é o gol em Y=300. Você defende o gol em Y=0.
-No campo "thinking", use frases heróicas e emocionantes de um jogador. No resto do JSON, seja técnico.
-Responda APENAS um JSON: {"thinking": "emoção", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.
-Nota: "pull" faz a bola passar por baixo de você se você estiver na frente dela. "dz" mede profundidade.</textarea>
+            <textarea id="p2-prompt" rows="18">¡Sos el 10 de la Selección Argentina! ¡Jugá con toda la garra y el corazón!
+El campo es de X: 0-200 y Y: 0-300. Usá las COORDENADAS DE AJEDREZ (A-J, 1-15).
+Tu objetivo es el arco en Y=300 (línea 15). Defendés el arco en Y=0 (línea 1).
+Si "posse_de_bola" es true, PEGALE (kick) al arco o usá "pull" para gambetear.
+En el campo "thinking", frases MUY CORTAS (máx 5 palabras) en ESPAÑOL ARGENTINO.
+Respondé SOLO un JSON: {"thinking": "¡Vamo' Argentina!", "type": "move|kick|pull", "dx": -1|0|1, "dz": -1|0|1, "power": 1|2|3}.</textarea>
+            <button class="btn btn-view-prompt" onclick="openPromptModal(2)">🔍 Ver Último Prompt (P2)</button>
+        </div>
+    </div>
+
+    <!-- Modal for Prompt Viewing -->
+    <div id="prompt-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Último Prompt Enviado</h2>
+                <button class="btn btn-stop" style="padding: 0.5rem 1rem;" onclick="closePromptModal()">X</button>
+            </div>
+            <div id="prompt-body">Nenhum prompt enviado ainda. Execute um turno primeiro.</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-align: center;">Pressione ESC ou clique em X para fechar</div>
         </div>
     </div>
 
     <script>
         let isRunning = false;
         let lastState = null;
+        let lastPrompts = { 1: null, 2: null };
+
 
         // Configuration Persistence
         document.addEventListener('DOMContentLoaded', () => {
             const savedHost = localStorage.getItem('arena_api_host');
             if (savedHost) document.getElementById('api-host').value = savedHost;
             
+            const savedCoords = localStorage.getItem('arena_show_coords') === 'true';
+            document.getElementById('toggle-coords').checked = savedCoords;
+            if (savedCoords) document.getElementById('arena-visual').classList.add('show-coords');
+
             document.getElementById('api-host').addEventListener('change', (e) => {
                 localStorage.setItem('arena_api_host', e.target.value);
             });
@@ -344,8 +437,54 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
                 localStorage.setItem('arena_p2_model', e.target.value);
             });
 
+            initCoordLabels();
             fetchGameState();
         });
+
+        function updateCoordsVisibility() {
+            const isChecked = document.getElementById('toggle-coords').checked;
+            localStorage.setItem('arena_show_coords', isChecked);
+            const visual = document.getElementById('arena-visual');
+            if (isChecked) visual.classList.add('show-coords');
+            else visual.classList.remove('show-coords');
+        }
+
+        function initCoordLabels() {
+            const gX = document.getElementById('coord-labels-x');
+            const gY = document.getElementById('coord-labels-y');
+            const letters = "ABCDEFGHIJ";
+            
+            // X labels (A-J)
+            for (let i = 0; i < 10; i++) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", (i * 20) + 10);
+                text.setAttribute("y", 10);
+                text.setAttribute("text-anchor", "middle");
+                text.className.baseVal = "coord-label";
+                text.textContent = letters[i];
+                gX.appendChild(text);
+
+                const textBottom = text.cloneNode(true);
+                textBottom.setAttribute("y", 295);
+                gX.appendChild(textBottom);
+            }
+
+            // Y labels (1-15)
+            for (let i = 0; i < 15; i++) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", 5);
+                text.setAttribute("y", (i * 20) + 12);
+                text.setAttribute("text-anchor", "start");
+                text.className.baseVal = "coord-label";
+                text.textContent = (i + 1);
+                gY.appendChild(text);
+
+                const textRight = text.cloneNode(true);
+                textRight.setAttribute("x", 195);
+                textRight.setAttribute("text-anchor", "end");
+                gY.appendChild(textRight);
+            }
+        }
 
         async function log(msg, type = '') {
             const consoleEl = document.getElementById('log-console');
@@ -466,9 +605,20 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
         function translateCoord(x, z) {
             // Interno (-100 a 100, -150 a 150) -> AI (0 a 200, 0 a 300)
             // No jogo Z é o comprimento, na IA chamamos de Y.
+            const ax = Math.round(x + 100);
+            const ay = Math.round(z + 150);
+            
+            // Chess notation calculation (A-J, 1-15)
+            // X is 0-200, 10 sections of 20 units
+            // Y is 0-300, 15 sections of 20 units
+            const letters = "ABCDEFGHIJ";
+            const chessX = letters[Math.min(9, Math.floor(ax / 20))];
+            const chessY = Math.min(15, Math.floor(ay / 20) + 1);
+            
             return {
-                x: Math.round(x + 100),
-                y: Math.round(z + 150)
+                x: ax,
+                y: ay,
+                chess: `${chessX}${chessY}`
             };
         }
 
@@ -490,18 +640,35 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
             const myGoal = { x: 100, y: playerNum === 1 ? 300 : 0 };
             const targetGoal = { x: 100, y: playerNum === 1 ? 0 : 300 };
 
+            // Calculando posse de bola (distância < 15 unidades internas)
+            const distBall = Math.sqrt(Math.pow(meData.x - lastState.ball.x, 2) + Math.pow(meData.z - lastState.ball.z, 2));
+            const hasBall = distBall < 15;
+
             const simplifiedState = {
                 voca: "Você é o Jogador " + (playerNum === 1 ? "1 (Brasil)" : "2 (Argentina)"),
                 campo: field,
-                minha_posicao: myPos,
-                bola: ballPos,
-                adversario: oppPos,
+                posse_de_bola: hasBall,
+                minha_posicao: myPos.x + "," + myPos.y + " (Xadrez: " + myPos.chess + ")",
+                bola: ballPos.x + "," + ballPos.y + " (Xadrez: " + ballPos.chess + ")",
+                adversario: oppPos.x + "," + oppPos.y + " (Xadrez: " + oppPos.chess + ")",
                 meu_gol: myGoal,
                 gol_alvo: targetGoal,
                 placar: lastState.score
             };
 
             try {
+                const payload = {
+                    model: model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300):\n${JSON.stringify(simplifiedState, null, 2)}` }
+                    ],
+                    response_format: { type: "json_object" }
+                };
+
+                // Store for debugging
+                lastPrompts[playerNum] = payload;
+
                 log(`P${playerNum} pensando...`, `log-player${playerNum}`);
                 const response = await fetch(`${host}/chat/completions`, {
                     method: 'POST',
@@ -509,14 +676,7 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
                         'Authorization': `Bearer ${key}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300):\n${JSON.stringify(simplifiedState, null, 2)}` }
-                        ],
-                        response_format: { type: "json_object" }
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
@@ -630,6 +790,31 @@ Nota: "pull" faz a bola passar por baixo de você se você estiver na frente del
             document.getElementById('btn-stop').style.display = 'none';
             log("Loop de Arena parado.");
         }
+
+        function openPromptModal(playerNum) {
+            const modal = document.getElementById('prompt-modal');
+            const body = document.getElementById('prompt-body');
+            const title = document.getElementById('modal-title');
+            
+            title.innerText = `Último Prompt - ${playerNum === 1 ? 'Brasil (P1)' : 'Argentina (P2)'}`;
+            
+            if (lastPrompts[playerNum]) {
+                body.innerText = JSON.stringify(lastPrompts[playerNum], null, 2);
+            } else {
+                body.innerText = "Nenhum prompt enviado ainda para este jogador. Execute um turno para capturar os dados.";
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closePromptModal() {
+            document.getElementById('prompt-modal').style.display = 'none';
+        }
+
+        // Close on ESC
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePromptModal();
+        });
 
         setInterval(fetchGameState, 500);
     </script>
