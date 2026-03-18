@@ -55,6 +55,8 @@ io.on('connection', (socket) => {
         let autoGk = typeof data === 'object' ? data.autoGk : true;
         let autoOpponent = typeof data === 'object' ? data.autoOpponent : true;
         let ballBounce = typeof data === 'object' ? data.ballBounce : true;
+        let gameSpeed = typeof data === 'object' && data.gameSpeed ? data.gameSpeed : 1.0;
+        let realTimeClock = typeof data === 'object' && data.realTimeClock ? data.realTimeClock : false;
 
         let roomId = mode; 
         if (mode === 'train') roomId = 'train';
@@ -67,6 +69,8 @@ io.on('connection', (socket) => {
                 game.autoOpponent = autoOpponent;
                 game.ballBounce = ballBounce;
             }
+            game.gameSpeed = parseFloat(gameSpeed) || 1.0;
+            game.realTimeClock = realTimeClock === true;
             // Sincroniza o tempo se fornecido
             if (typeof data === 'object' && data.gameTime) {
                 game.TIME_PER_HALF = parseInt(data.gameTime) * 60;

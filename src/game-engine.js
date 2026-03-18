@@ -6,6 +6,8 @@ export class GameEngine {
         this.autoOpponent = options.autoOpponent !== false;
         this.ballBounce = options.ballBounce !== false;
         this.magneticBall = options.magneticBall !== false; 
+        this.gameSpeed = options.gameSpeed || 1.0;
+        this.realTimeClock = options.realTimeClock === true;
 
         this.GRID_W = 200;
         this.GRID_H = 300;
@@ -93,10 +95,13 @@ export class GameEngine {
     }
 
     update(dt) {
+        const dtReal = dt;
+        dt = dt * this.gameSpeed;
+        
         if (this.isGameActive && !this.isGoal) {
             // No modo treino o tempo não corre
             if (this.mode !== 'train') {
-                this.gameTime -= dt;
+                this.gameTime -= (this.realTimeClock ? dtReal : dt);
             }
             
             if (this.gameTime <= 0 && this.mode !== 'train') {
@@ -578,6 +583,17 @@ export class GameEngine {
             this.currentHalf = 1;
             this.score = { A: 0, B: 0 };
             this.resetPositions();
+            return;
+        }
+        if (action.type === 'setGameSpeed') {
+            const speed = parseFloat(action.speed);
+            if (!isNaN(speed) && speed > 0 && speed <= 5) {
+                this.gameSpeed = speed;
+            }
+            return;
+        }
+        if (action.type === 'setRealTimeClock') {
+            this.realTimeClock = action.active === true;
             return;
         }
 

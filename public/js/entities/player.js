@@ -229,35 +229,12 @@ export class Player {
     }
 
     update(data) {
-        const targetX = data.x;
-        const targetZ = data.z;
-        
-        const dx = targetX - this.mesh.position.x;
-        const dz = targetZ - this.mesh.position.z;
+        this.targetX = data.x;
+        this.targetZ = data.z;
+        this.facingX = data.facingX;
+        this.facingZ = data.facingZ;
+        this.isGameActive = data.isActive;
 
-        if (Math.abs(dx) > 0.5 || Math.abs(dz) > 0.5) {
-            this.walkCycle += 0.4;
-            const swing = Math.sin(this.walkCycle) * 0.6;
-            this.legGroupL.rotation.x = swing;
-            this.legGroupR.rotation.x = -swing;
-            this.armL.rotation.x = -swing;
-            this.armR.rotation.x = swing;
-            
-            // Rotação baseada na direção que o servidor informou (8 direções)
-            if (data.facingX !== undefined && data.facingZ !== undefined) {
-                // THREE.js usa o eixo Y como vertical, então rotacionamos em torno dele
-                this.mesh.rotation.y = Math.atan2(data.facingX, data.facingZ);
-            }
-        } else {
-            this.walkCycle = 0;
-            this.legGroupL.rotation.x = 0;
-            this.legGroupR.rotation.x = 0;
-            this.armL.rotation.x = 0;
-            this.armR.rotation.x = 0;
-        }
-
-        this.mesh.position.x += dx * 0.2;
-        this.mesh.position.z += dz * 0.2;
 
         if (data.name !== this._lastName) {
             this.updateLabel(this.nameLabel, data.name);
@@ -303,6 +280,59 @@ export class Player {
         } else {
             this.rayLine.visible = false;
             this.rayLabel.visible = false;
+        }
+    }
+
+    tick(dt) {
+        if (this.targetX === undefined) return;
+
+        const dx = this.targetX - this.mesh.position.x;
+        const dz = this.targetZ - this.mesh.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        let speedMultiplier = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
+        
+        // Se a distância do teletransporte for maior que 3 blocos (30 units), é um Reset de posições (Início, Gol, 2º Tempo).
+        // Forçamos a velocidade visual para 1.0 (Normal) para o jogador correr rapidamente para a base!
+        if (dist > 30) this._isResetting = true;
+        if (dist < 0.5) this._isResetting = false;
+
+        if (this._isResetting && speedMultiplier < 1.0) {
+            speedMultiplier = 1.0; 
+        }
+
+        const baseSpeed = 50.0; // 10 units / 0.2s
+        const moveSpeed = baseSpeed * speedMultiplier;
+        
+        const moveDist = moveSpeed * dt;
+
+        if (dist > 0.1) {
+            this.walkCycle += moveDist * 0.6; // Scale walk cycle with movement
+            const swing = Math.sin(this.walkCycle) * 0.6;
+            this.legGroupL.rotation.x = swing;
+            this.legGroupR.rotation.x = -swing;
+            this.armL.rotation.x = -swing;
+            this.armR.rotation.x = swing;
+
+            if (this.facingX !== undefined && this.facingZ !== undefined) {
+                this.mesh.rotation.y = Math.atan2(this.facingX, this.facingZ);
+            }
+
+            if (moveDist >= dist) {
+                this.mesh.position.x = this.targetX;
+                this.mesh.position.z = this.targetZ;
+            } else {
+                this.mesh.position.x += (dx / dist) * moveDist;
+                this.mesh.position.z += (dz / dist) * moveDist;
+            }
+        } else {
+            this.walkCycle = 0;
+            this.legGroupL.rotation.x = 0;
+            this.legGroupR.rotation.x = 0;
+            this.armL.rotation.x = 0;
+            this.armR.rotation.x = 0;
+            this.mesh.position.x = this.targetX;
+            this.mesh.position.z = this.targetZ;
         }
     }
 }

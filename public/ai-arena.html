@@ -54,11 +54,63 @@
         .panel:hover { border-color: rgba(255, 255, 255, 0.2); }
 
         /* Configuration Styles */
-        .config-header {
+        .model-select-group {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 0.5rem;
+            gap: 0.5rem;
+        }
+
+        /* Combo Box Styles */
+        .combo-container {
+            position: relative;
+            width: 100%;
+        }
+        .combo-input {
+            width: 100%;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 0.35rem 0.5rem;
+            outline: none;
+            box-sizing: border-box;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        .p1-combo .combo-input { border: 1px solid #4ade80; }
+        .p2-combo .combo-input { border: 1px solid #60a5fa; }
+        
+        .combo-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-top: none;
+            z-index: 1000;
+            display: none;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+        .combo-dropdown.show { display: block; }
+        
+        .combo-option {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: monospace;
+        }
+        .combo-option:hover { background: rgba(255,255,255,0.1); }
+        .combo-option.highlight { background: rgba(56, 189, 248, 0.4); color: white; font-weight: bold; }
+
+        .btn {-bottom: 0.5rem;
         }
 
         label {
@@ -320,7 +372,10 @@
         
         <div>
             <label>Modelo IA</label>
-            <select id="p1-model"><option>Carregando modelos...</option></select>
+            <div class="combo-container p1-combo">
+                <input type="text" id="p1-model" class="combo-input" placeholder="Pesquisar modelo..." onchange="saveSelections()" autocomplete="off">
+                <div id="p1-dropdown" class="combo-dropdown"></div>
+            </div>
         </div>
 
         <div style="display: flex; gap: 0.5rem; flex-direction: column;">
@@ -369,6 +424,10 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
         </div>
 
         <div class="panel" style="padding: 0.5rem 1rem; flex-direction: row; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
+                <input type="checkbox" id="toggle-parallel" style="width: auto;" checked onchange="updateParallelSetting()">
+                <label for="toggle-parallel" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">🔀 Paralelo</label>
+            </div>
             <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
                 <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
                 <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">Coords</label>
@@ -445,6 +504,10 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
         <div class="controls-bar">
             <button class="btn" style="background: rgba(255,255,255,0.1); margin-right: 0.5rem;" onclick="restartGame()">🔄 Reset</button>
             <button class="btn" style="background: rgba(239, 68, 68, 0.2); margin-right: 0.5rem; color: #f87171;" onclick="endGame()">🏁 Encerrar Partida</button>
+            <div style="display: flex; align-items: center; gap: 0.4rem; background: rgba(0,0,0,0.5); padding: 0.2rem 0.5rem; border-radius: 8px;">
+                <label for="ai-interval-config" style="font-size: 0.65rem; color: #94a3b8; white-space: nowrap; margin-bottom: 0;">⏳ Delay IA (ms)</label>
+                <input type="number" id="ai-interval-config" value="200" min="50" max="5000" step="50" style="width: 55px; padding: 0.2rem; font-size: 0.7rem; text-align: center; color: white; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;" onchange="saveAiInterval()">
+            </div>
             <button class="btn btn-step" onclick="takeStep()">⚡ Turno</button>
             <button id="btn-play" class="btn btn-play" onclick="startLoop()">▶ Arena Loop</button>
             <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
@@ -469,7 +532,10 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
 
         <div>
             <label>Modelo IA</label>
-            <select id="p2-model"><option>Carregando modelos...</option></select>
+            <div class="combo-container p2-combo">
+                <input type="text" id="p2-model" class="combo-input" placeholder="Pesquisar modelo..." onchange="saveSelections()" autocomplete="off">
+                <div id="p2-dropdown" class="combo-dropdown"></div>
+            </div>
         </div>
 
         <div style="display: flex; gap: 0.5rem; flex-direction: column;">
@@ -548,6 +614,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             document.getElementById('p1-active').checked = p1Active;
             document.getElementById('p2-active').checked = p2Active;
 
+            const parallelActive = localStorage.getItem('arena_parallel_mode') !== 'false'; 
+            document.getElementById('toggle-parallel').checked = parallelActive;
+
             // Name Persistence
             const p1Name = localStorage.getItem('arena_p1_name');
             const p2Name = localStorage.getItem('arena_p2_name');
@@ -570,14 +639,6 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             document.getElementById('toggle-magnetic').checked = magActive;
             updateMagneticBall(); // Sincroniza inicial
 
-            document.getElementById('p1-model').addEventListener('change', (e) => {
-                localStorage.setItem('arena_p1_model', e.target.value);
-            });
-
-            document.getElementById('p2-model').addEventListener('change', (e) => {
-                localStorage.setItem('arena_p2_model', e.target.value);
-            });
-
             // Game time config persistence
             const savedTime = localStorage.getItem('arena_game_time_minutes');
             if (savedTime) {
@@ -586,6 +647,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 saveGameTimeConfig();
             }
 
+            const savedAiInterval = localStorage.getItem('arena_ai_interval');
+            if (savedAiInterval) document.getElementById('ai-interval-config').value = savedAiInterval;
+
             initCoordLabels();
             fetchGameState();
 
@@ -593,10 +657,79 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             setInterval(updateRpmDisplay, 2000);
 
             // Auto-sync se já foi sincronizado com sucesso antes
-            if (localStorage.getItem('arena_is_synced') === 'true') {
-                refreshModels();
+            // Initial sync if params are intact
+            if (savedHost) {
+                setTimeout(refreshModels, 500); // Wait for potential UI updates
             }
+
+            setupComboBox('p1');
+            setupComboBox('p2');
         });
+
+        let availableModels = [];
+
+        function setupComboBox(player) {
+            const input = document.getElementById(`${player}-model`);
+            const dropdown = document.getElementById(`${player}-dropdown`);
+
+            input.addEventListener('focus', () => {
+                dropdown.classList.add('show');
+                highlightMatch(player, input.value);
+            });
+
+            // Close exactly when clicking outside
+            document.addEventListener('mousedown', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+
+            input.addEventListener('input', (e) => {
+                dropdown.classList.add('show');
+                highlightMatch(player, e.target.value);
+            });
+        }
+
+        function highlightMatch(player, text) {
+            const dropdown = document.getElementById(`${player}-dropdown`);
+            const options = dropdown.getElementsByClassName('combo-option');
+            text = text.trim().toLowerCase();
+
+            for (let opt of options) {
+                opt.classList.remove('highlight');
+            }
+
+            if (!text) return;
+
+            for (let opt of options) {
+                if (opt.textContent.toLowerCase().includes(text)) {
+                    opt.classList.add('highlight');
+                    opt.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    break;
+                }
+            }
+        }
+
+        function renderDropdown(player) {
+            const dropdown = document.getElementById(`${player}-dropdown`);
+            dropdown.innerHTML = '';
+            availableModels.forEach(modelId => {
+                const div = document.createElement('div');
+                div.className = 'combo-option';
+                div.textContent = modelId;
+                div.onclick = () => {
+                    document.getElementById(`${player}-model`).value = modelId;
+                    dropdown.classList.remove('show');
+                    saveSelections();
+                };
+                dropdown.appendChild(div);
+            });
+        }
+
+        function saveSelections() {
+            localStorage.setItem('arena_p1_model', document.getElementById('p1-model').value);
+            localStorage.setItem('arena_p2_model', document.getElementById('p2-model').value);
+        }
 
         async function saveGameTimeConfig() {
             const val = document.getElementById('game-time-config').value;
@@ -606,6 +739,10 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const timeSeconds = (parseInt(val) || 2) * 60;
             await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
             log(`Tempo de jogo sincronizado: ${val}min`);
+        }
+
+        function saveAiInterval() {
+            localStorage.setItem('arena_ai_interval', document.getElementById('ai-interval-config').value);
         }
 
         function updateRpmDisplay() {
@@ -621,6 +758,11 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const visual = document.getElementById('arena-visual');
             if (isChecked) visual.classList.add('show-coords');
             else visual.classList.remove('show-coords');
+        }
+
+        function updateParallelSetting() {
+            const isChecked = document.getElementById('toggle-parallel').checked;
+            localStorage.setItem('arena_parallel_mode', isChecked);
         }
 
         function saveActivity(playerNum) {
@@ -694,28 +836,19 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 
                 const data = await response.json();
                 
-                const p1Select = document.getElementById('p1-model');
-                const p2Select = document.getElementById('p2-model');
-                
-                const savedP1 = localStorage.getItem('arena_p1_model');
-                const savedP2 = localStorage.getItem('arena_p2_model');
-
-                p1Select.innerHTML = "";
-                p2Select.innerHTML = "";
-                
-                data.data.forEach(model => {
-                    const opt1 = document.createElement('option');
-                    opt1.value = model.id;
-                    opt1.text = model.id;
-                    if (model.id === savedP1) opt1.selected = true;
-                    p1Select.add(opt1);
+                if (data && data.data) {
+                    availableModels = data.data.map(m => m.id).sort((a, b) => a.localeCompare(b));
                     
-                    const opt2 = document.createElement('option');
-                    opt2.value = model.id;
-                    opt2.text = model.id;
-                    if (model.id === savedP2) opt2.selected = true;
-                    p2Select.add(opt2);
-                });
+                    renderDropdown('p1');
+                    renderDropdown('p2');
+
+                    // Read selections from localStorage directly without recreating DOM options
+                    const savedP1 = localStorage.getItem('arena_p1_model');
+                    const savedP2 = localStorage.getItem('arena_p2_model');
+
+                    if (savedP1 && availableModels.includes(savedP1)) document.getElementById('p1-model').value = savedP1;
+                    if (savedP2 && availableModels.includes(savedP2)) document.getElementById('p2-model').value = savedP2;
+                }
 
                 isSynced = true; // Sincronia confirmada!
                 localStorage.setItem('arena_is_synced', 'true');
@@ -1003,7 +1136,6 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const host = document.getElementById('api-host').value;
             const key = document.getElementById('api-key').value;
 
-            // 1. Verificação básica de Host se algum player estiver ativo
             if ((p1Active || p2Active) && !host) {
                 openModal("Configuração Incompleta", "Você precisa preencher o <b>API Host</b> antes de realizar jogadas.", "error");
                 return false;
@@ -1012,13 +1144,11 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const p1Select = document.getElementById('p1-model');
             const p2Select = document.getElementById('p2-model');
 
-            // 2. Bloqueio por falta de sincronização explícita
             if (!isSynced) {
                 openModal("Sincronização Necessária", "Você mudou as configurações ou ainda não carregou os modelos. Clique em <b>Sincronizar Modelos</b> antes de iniciar.", "error");
                 return false;
             }
 
-            // 3. Verificar se há modelos selecionados para os ativos
             if (p1Active && !p1Select.value) {
                 openModal("Modelo não Selecionado", "Por favor, selecione um modelo para o <b>Brasil (P1)</b>.", "error");
                 return false;
@@ -1029,6 +1159,46 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             }
 
             return true;
+        }
+
+        const processAction = async (playerNum, action) => {
+            if (!action) return;
+            if (action.thinking) {
+                log(`${playerNum === 1 ? 'Brasil' : 'Argentina'} (Pensamento): ${action.thinking}`, `log-player${playerNum}`);
+                action.text = action.thinking;
+            }
+            let actionDesc = action.type || action.action;
+            if (action.type === 'kick') {
+                actionDesc += ` (Power: ${action.power || '?'})`;
+            } else if (action.type === 'move' && action.target) {
+                actionDesc += ` (${action.target})`;
+            } else if (action.dx !== undefined || action.dz !== undefined) {
+                actionDesc += ` (dx:${action.dx || 0}, dz:${action.dz || 0})`;
+            }
+
+            log(`${playerNum === 1 ? 'Brasil' : 'Argentina'} executa: ${actionDesc}`, `log-player${playerNum}`);
+            await sendToGame(playerNum, action);
+        };
+
+        async function doAITurn() {
+            const p1IsActive = document.getElementById('p1-active').checked;
+            const p2IsActive = document.getElementById('p2-active').checked;
+            const isParallel = document.getElementById('toggle-parallel').checked;
+
+            let p1Action, p2Action;
+
+            if (isParallel) {
+                const [r1, r2] = await Promise.all([
+                    p1IsActive ? askAI(1) : Promise.resolve(null),
+                    p2IsActive ? askAI(2) : Promise.resolve(null)
+                ]);
+                p1Action = r1; p2Action = r2;
+            } else {
+                if (p1IsActive) p1Action = await askAI(1);
+                if (p2IsActive) p2Action = await askAI(2);
+            }
+
+            return { p1Action, p2Action };
         }
 
         async function takeStep() {
@@ -1044,78 +1214,63 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 return;
             }
 
-            // Brasil turn (P1)
-            if (document.getElementById('p1-active').checked) {
-                const p1Action = await askAI(1);
-                if (p1Action) {
-                    if (p1Action.thinking) {
-                        log(`Brasil (Pensamento): ${p1Action.thinking}`, 'log-player1');
-                        p1Action.text = p1Action.thinking;
-                    }
-                    let actionDesc = p1Action.type || p1Action.action;
-                    if (p1Action.type === 'kick') {
-                        actionDesc += ` (Power: ${p1Action.power || '?'})`;
-                    } else if (p1Action.type === 'move' && p1Action.target) {
-                        actionDesc += ` (${p1Action.target})`;
-                    } else if (p1Action.dx !== undefined || p1Action.dz !== undefined) {
-                        actionDesc += ` (dx:${p1Action.dx || 0}, dz:${p1Action.dz || 0})`;
-                    }
+            const { p1Action, p2Action } = await doAITurn();
+            const isParallel = document.getElementById('toggle-parallel').checked;
 
-                    log(`Brasil executa: ${actionDesc}`, 'log-player1');
-                    await sendToGame(1, p1Action);
-                }
-            }
-            
-            await new Promise(r => setTimeout(r, 300));
-            await fetchGameState();
-
-            // Argentina turn (P2)
-            if (document.getElementById('p2-active').checked) {
-                const p2Action = await askAI(2);
-                if (p2Action) {
-                    if (p2Action.thinking) {
-                        log(`Argentina (Pensamento): ${p2Action.thinking}`, 'log-player2');
-                        p2Action.text = p2Action.thinking;
-                    }
-                    let actionDesc = p2Action.type || p2Action.action;
-                    if (p2Action.type === 'kick') {
-                        actionDesc += ` (Power: ${p2Action.power || '?'})`;
-                    } else if (p2Action.type === 'move' && p2Action.target) {
-                        actionDesc += ` (${p2Action.target})`;
-                    } else if (p2Action.dx !== undefined || p2Action.dz !== undefined) {
-                        actionDesc += ` (dx:${p2Action.dx || 0}, dz:${p2Action.dz || 0})`;
-                    }
-
-                    log(`Argentina executa: ${actionDesc}`, 'log-player2');
-                    await sendToGame(2, p2Action); 
-                }
-            }
+            if (p1Action) await processAction(1, p1Action);
+            if (p2Action && !isParallel) await new Promise(r => setTimeout(r, 300));
+            if (p2Action) await processAction(2, p2Action);
             
             await fetchGameState();
         }
-
-        async function restartGame() {
-            const timeMinutes = parseInt(document.getElementById('game-time-config').value) || 2;
-            const timeSeconds = timeMinutes * 60;
-            log(`Reiniciando a partida! Tempo configurado para: ${timeMinutes}min`);
-            await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
             
-            // Força a atualização do visual imediatamente
-            lastState = null;
-            await fetchGameState();
-        }
-
-        async function endGame() {
-            if (!confirm("Deseja realmente encerrar a partida atual?")) return;
-            log("Encerrando a partida oficialmente...");
-            await sendToGame(1, { type: 'stopGame' });
-            
-            // Força a atualização do visual imediatamente
-            lastState = null;
-            await fetchGameState();
-        }
-
         let loopTimer = null;
+        let lastActionSendTime = 0;
+
+        async function continuousLoop() {
+            if (!isRunning) return;
+
+            if (!lastState || !lastState.isGameActive) {
+                log("Aguardando início da partida em index.html...", "log-system");
+                loopTimer = setTimeout(continuousLoop, 2000);
+                return;
+            }
+
+            // 1. Pensa sobre o estado ATUAL (que pode já ser o futuro, pois atualizamos logo após o sendAction anterior)
+            const { p1Action, p2Action } = await doAITurn();
+
+            if (!isRunning) return;
+
+            // 2. Sincroniza o tempo de envio com o Delay da IA E com a Velocidade do Jogo
+            const userDelay = parseInt(document.getElementById('ai-interval-config').value) || 200;
+            const gameSpeed = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
+            const engineCooldownMs = 200 / gameSpeed; // Tempo exato que a engine leva para liberar o próximo passo visualmente
+            
+            const targetInterval = Math.max(userDelay, engineCooldownMs);
+            const timeSinceLastSend = Date.now() - lastActionSendTime;
+            const sleepTime = Math.max(0, targetInterval - timeSinceLastSend);
+
+            if (sleepTime > 0) {
+                await new Promise(r => setTimeout(r, sleepTime));
+            }
+
+            if (!isRunning) return;
+
+            // 3. Envia os comandos (Isso fará com que o personagem comece a se mover na UI de forma síncrona com os comandos do servidor)
+            const isParallel = document.getElementById('toggle-parallel').checked;
+            if (p1Action) await processAction(1, p1Action);
+            if (p2Action && !isParallel) await new Promise(r => setTimeout(r, 300));
+            if (p2Action) await processAction(2, p2Action);
+
+            lastActionSendTime = Date.now();
+
+            // 4. Captura Imediatamente a Posicao Futura (os dados chegam como "novo quadrado" mesmo enquanto rola animacao)
+            await fetchGameState();
+
+            // 5. Continua o ciclo preenchendo o proximo request durante a animacao que ta rolando
+            loopTimer = setTimeout(continuousLoop, 0);
+        }
+
         async function startLoop() {
             if (!validateSetup()) return;
 
@@ -1124,25 +1279,11 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             document.getElementById('btn-stop').style.display = 'inline-flex';
             document.getElementById('game-status-badge').innerText = '';
 
-            // Resetar estado local para garantir sincronia antes de iniciar
-            lastState = null;
+            lastActionSendTime = 0;
             await fetchGameState();
 
-            log("Loop de Arena ativado!");
-            runLoop();
-        }
-
-        async function runLoop() {
-            if (!isRunning) return;
-            
-            if (!lastState || !lastState.isGameActive) {
-                log("Aguardando início da partida em index.html...", "log-system");
-                loopTimer = setTimeout(runLoop, 2000);
-                return;
-            }
-
-            await takeStep();
-            loopTimer = setTimeout(runLoop, 200);
+            log("Pipeline de Jogo em Tempo Real (Contínuo) ativado!");
+            continuousLoop();
         }
 
         function stopLoop() {
@@ -1150,7 +1291,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             clearTimeout(loopTimer);
             document.getElementById('btn-play').style.display = 'block';
             document.getElementById('btn-stop').style.display = 'none';
-            log("Loop de Arena parado.");
+            log("Loop Contínuo parado.");
         }
 
         function openModal(title, body, type = '') {
