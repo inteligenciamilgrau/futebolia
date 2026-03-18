@@ -240,6 +240,7 @@ function setupSocket() {
 
     socket.on('init', (state) => {
         state.players.forEach(pData => {
+            pData.isActive = state.isGameActive;
             players.set(pData.id, new Player(pData, scene, mats));
         });
         ball = new Ball(state.ball, scene);
@@ -247,6 +248,7 @@ function setupSocket() {
 
     socket.on('state-update', (state) => {
         state.players.forEach(pData => {
+            pData.isActive = state.isGameActive;
             const p = players.get(pData.id);
             if (p) p.update(pData);
         });
@@ -326,6 +328,14 @@ function setupUI() {
     const savedBallBounce = localStorage.getItem('ballBounce') !== 'false'; // Default true
     chkBounce.checked = savedBallBounce;
 
+    const speedSelect = document.getElementById('game-speed-select');
+    const savedSpeed = localStorage.getItem('gameSpeed') || "1.0";
+    speedSelect.value = savedSpeed;
+
+    const chkRealTime = document.getElementById('ingame-chk-realtime');
+    const savedRealTime = localStorage.getItem('realTimeClock') === 'true';
+    chkRealTime.checked = savedRealTime;
+
     document.getElementById('btn-jogar').addEventListener('click', () => {
         startScreen.style.display = 'none';
         Sound.init();
@@ -340,7 +350,9 @@ function setupUI() {
             playerId: parseInt(selectedPlayerId), 
             mode: 'play', 
             gameTime,
-            p1Name, p2Name, p1IsTeam, p2IsTeam
+            p1Name, p2Name, p1IsTeam, p2IsTeam,
+            gameSpeed: parseFloat(speedSelect.value),
+            realTimeClock: chkRealTime.checked
         });
     });
 
@@ -365,7 +377,9 @@ function setupUI() {
             mode: 'train', 
             autoGk: ingameChkGk.checked, 
             gameTime,
-            p1Name, p2Name, p1IsTeam, p2IsTeam
+            p1Name, p2Name, p1IsTeam, p2IsTeam,
+            gameSpeed: parseFloat(speedSelect.value),
+            realTimeClock: chkRealTime.checked
         });
     });
 
@@ -393,7 +407,9 @@ function setupUI() {
             autoOpponent, 
             ballBounce, 
             gameTime,
-            p1Name, p2Name, p1IsTeam, p2IsTeam
+            p1Name, p2Name, p1IsTeam, p2IsTeam,
+            gameSpeed: parseFloat(speedSelect.value),
+            realTimeClock: chkRealTime.checked
         });
     });
 
@@ -416,17 +432,90 @@ function setupUI() {
         socket.emit('action', { type: 'toggleBallBounce', active: e.target.checked });
     });
 
+    speedSelect.addEventListener('change', (e) => {
+        localStorage.setItem('gameSpeed', e.target.value);
+        if (!selectedPlayerId) return;
+        socket.emit('action', { type: 'setGameSpeed', speed: parseFloat(e.target.value) });
+        if (window.updateManualMoveInterval) window.updateManualMoveInterval();
+    });
+
+    chkRealTime.addEventListener('change', (e) => {
+        localStorage.setItem('realTimeClock', e.target.checked);
+        if (!selectedPlayerId) return;
+        socket.emit('action', { type: 'setRealTimeClock', active: e.target.checked });
+    });
+
     const keysPressed = new Set();
     
     const moveKeys = {
-        'w': { dx: -1, dz: 0 }, 's': { dx: 1, dz: 0 }, 'a': { dx: 0, dz: 1 }, 'd': { dx: 0, dz: -1 },
-        'arrowup': { dx: -1, dz: 0 }, 'arrowdown': { dx: 1, dz: 0 }, 'arrowleft': { dx: 0, dz: 1 }, 'arrowright': { dx: 0, dz: -1 }
+        'w': true, 'a': true, 's': true, 'd': true,
+        'arrowup': true, 'arrowleft': true, 'arrowdown': true, 'arrowright': true
     };
+
+    function showSpeedToast(text) {
+        let toast = document.getElementById('speed-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'speed-toast';
+            toast.style.position = 'absolute';
+            toast.style.top = '15%';
+            toast.style.left = '50%';
+            toast.style.transform = 'translate(-50%, 0)';
+            toast.style.background = 'rgba(0, 0, 0, 0.75)';
+            toast.style.color = '#fff';
+            toast.style.border = '2px solid #fff';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '8px';
+            toast.style.fontFamily = 'monospace';
+            toast.style.fontSize = '20px';
+            toast.style.fontWeight = 'bold';
+            toast.style.zIndex = '9999';
+            toast.style.transition = 'opacity 0.2s ease-in-out';
+            toast.style.pointerEvents = 'none';
+            document.body.appendChild(toast);
+        }
+        
+        toast.innerHTML = `⏩ ${text}`;
+        toast.style.opacity = '1';
+        
+        if (toast.hideTimeout) clearTimeout(toast.hideTimeout);
+        toast.hideTimeout = setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 1500);
+    }
+
+    function changeSpeedStep(step) {
+        const speedSelect = document.getElementById('game-speed-select');
+        if (!speedSelect) return;
+        const index = speedSelect.selectedIndex;
+        let newIndex = index + step;
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= speedSelect.options.length) newIndex = speedSelect.options.length - 1;
+        
+        if (newIndex !== index) {
+            speedSelect.selectedIndex = newIndex;
+            speedSelect.dispatchEvent(new Event('change'));
+            
+            showSpeedToast(speedSelect.options[newIndex].text);
+        }
+    }
 
     window.addEventListener('keydown', (e) => {
         if (!selectedPlayerId) return;
         const key = e.key.toLowerCase();
-        keysPressed.add(key);
+        
+        if (moveKeys[key]) {
+            keysPressed.add(key);
+        }
+
+        // Atalhos de velocidade (Mais Rápido / Mais Lento)
+        if (e.key === '+' || e.key === '=') {
+            changeSpeedStep(1);
+            e.preventDefault(); // Prevent browser zoom
+        } else if (e.key === '-') {
+            changeSpeedStep(-1);
+            e.preventDefault(); // Prevent browser zoom
+        }
 
         let action = null;
         if (['1', '2', '3'].includes(key)) action = { type: 'kick', power: parseInt(key), isManual: true };
@@ -442,26 +531,44 @@ function setupUI() {
         keysPressed.delete(e.key.toLowerCase());
     });
 
-    // Loop de movimento mais lento (200ms) para ritmo fixo
-    setInterval(() => {
-        if (!selectedPlayerId) return;
-        
-        let dx = 0;
-        let dz = 0;
-        
-        if (keysPressed.has('w') || keysPressed.has('arrowup')) dx -= 1;
-        if (keysPressed.has('s') || keysPressed.has('arrowdown')) dx += 1;
-        if (keysPressed.has('a') || keysPressed.has('arrowleft')) dz += 1;
-        if (keysPressed.has('d') || keysPressed.has('arrowright')) dz -= 1;
+    // Loop de movimento mais lento (200ms) ajustado pela velocidade
+    let moveIntervalTimer;
+    window.updateManualMoveInterval = function() {
+        if (moveIntervalTimer) clearInterval(moveIntervalTimer);
+        const speed = parseFloat(speedSelect.value) || 1.0;
+        const interval = Math.max(50, 200 / speed);
 
-        if (dx !== 0 || dz !== 0) {
-            socket.emit('action', { type: 'move', dx, dz, isManual: true });
-        }
-    }, 200); 
+        moveIntervalTimer = setInterval(() => {
+            if (!selectedPlayerId) return;
+            
+            let dx = 0;
+            let dz = 0;
+            
+            if (keysPressed.has('w') || keysPressed.has('arrowup')) dx -= 1;
+            if (keysPressed.has('s') || keysPressed.has('arrowdown')) dx += 1;
+            if (keysPressed.has('a') || keysPressed.has('arrowleft')) dz += 1;
+            if (keysPressed.has('d') || keysPressed.has('arrowright')) dz -= 1;
+
+            if (dx !== 0 || dz !== 0) {
+                socket.emit('action', { type: 'move', dx, dz, isManual: true });
+            }
+        }, interval); 
+    };
+
+    window.updateManualMoveInterval();
 }
+
+const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+    
+    // Animate players at 60fps independently of network
+    players.forEach(p => {
+        if (p.tick) p.tick(dt);
+    });
+    
     controls.update();
     renderer.render(scene, camera);
 }
