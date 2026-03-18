@@ -30,44 +30,59 @@
 
     <div id="ui-layer">
         <div id="placar-container">
-            <span class="time-a">BRASIL</span> &nbsp;<span id="score-a">0</span>
+            <span class="time-a">BRASIL</span> <span id="score-a">0</span>
             <div id="clock-container">
-                <div id="clock-wrapper"><div id="clock-fill"></div></div>
+                <div id="clock-wrapper">
+                    <div id="clock-fill"></div>
+                    <span id="game-time">02:00</span>
+                </div>
                 <div id="half-indicator">1º T</div>
             </div>
-            <span id="score-b">0</span>&nbsp; <span class="time-b">ARGENTINA</span>
+            <span id="score-b">0</span> <span class="time-b">ARGENTINA</span>
         </div>
         
-        <!-- Controles exclusivos do Modo Treino / 1v1 (Ocultos por padrão) -->
-        <div id="training-controls" style="display: none;">
-            <h3 id="mode-ctrl-title">Opções</h3>
-            <label id="gk-ctrl-label" class="gk-toggle" style="display: none; color: #333; text-shadow: none;">
-                <input type="checkbox" id="ingame-chk-goleiro" checked>
-                <span>Goleiro Automático</span>
-            </label>
-            <label id="opponent-ctrl-label" class="gk-toggle" style="display: none; color: #333; text-shadow: none;">
-                <input type="checkbox" id="ingame-chk-opponent" checked>
-                <span>Oponente com IA</span>
-            </label>
-            <label id="bounce-ctrl-label" class="gk-toggle" style="display: none; color: #333; text-shadow: none;">
-                <input type="checkbox" id="ingame-chk-bounce" checked>
-                <span>Rebate Aleatório (Lateral)</span>
-            </label>
-        </div>
+        <!-- Menu Unificado de Opções e Controles -->
+        <div id="game-menu" class="minimized">
+            <div id="menu-header" onclick="toggleMenu()">
+                <span id="menu-icon">⚙️</span>
+                <span id="menu-title">Opções & Controles</span>
+                <span id="menu-toggle-arrow">▲</span>
+            </div>
+            
+            <div id="menu-content">
+                <!-- Seção de Opções (Dinâmica) -->
+                <div id="training-controls" style="display: none;">
+                    <h4 id="mode-ctrl-title">Configurações de Partida</h4>
+                    <label id="gk-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-goleiro" checked>
+                        <span>Goleiro Automático</span>
+                    </label>
+                    <label id="opponent-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-opponent" checked>
+                        <span>Oponente com IA</span>
+                    </label>
+                    <label id="bounce-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-bounce" checked>
+                        <span>Rebate Aleatório</span>
+                    </label>
+                </div>
 
-        <div id="instructions">
-            <h3>Controles</h3>
-            <ul>
-                <li><b>W, A, S, D</b>: Mover</li>
-                <li><b>1, 2, 3</b>: Chutar</li>
-                <li><b>P</b>: Puxar</li>
-                <li><b>T</b>: Falar</li>
-            </ul>
+                <!-- Seção de Instruções -->
+                <div id="instructions">
+                    <h4>Comandos</h4>
+                    <ul>
+                        <li><b>W, A, S, D</b>: Mover</li>
+                        <li><b>1, 2, 3</b>: Chutar (Força)</li>
+                        <li><b>P</b>: Puxar Bola</li>
+                        <li><b>T</b>: Chat Global</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
     
     <div id="center-messages">GOL!</div>
 
-    <script type="module" src="js/main.js?v=3"></script>
+    <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>

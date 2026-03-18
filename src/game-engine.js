@@ -81,22 +81,34 @@ export class GameEngine {
             this.ball.x = randomX;
             this.ball.z = randomZ;
 
-            this.gameTime = 9999;
+            this.gameTime = this.TIME_PER_HALF;
             this.currentHalf = 1;
         }
 
         this.score = { A: 0, B: 0 };
+        this.teamNames = { A: "Brasil", B: "Argentina" };
         this.isGameActive = false; 
-        if(this.mode === 'train' || this.mode === '1v1') this.isGameActive = true; 
         this.isGoal = false;
         this.lastUpdate = Date.now();
     }
 
     update(dt) {
         if (this.isGameActive && !this.isGoal) {
-            this.gameTime -= dt;
-            if (this.gameTime <= 0) {
-                this.isGameActive = false;
+            // No modo treino o tempo não corre
+            if (this.mode !== 'train') {
+                this.gameTime -= dt;
+            }
+            
+            if (this.gameTime <= 0 && this.mode !== 'train') {
+                if (this.mode === '1v1' && this.currentHalf === 1) {
+                    // Fim do 1º tempo — troca de lado
+                    this.currentHalf = 2;
+                    this.gameTime = this.TIME_PER_HALF;
+                    this.swapSides();
+                } else {
+                    this.gameTime = 0;
+                    this.isGameActive = false;
+                }
             }
             this.updateIA(dt);
         }
@@ -505,6 +517,22 @@ export class GameEngine {
         }
     }
 
+    swapSides() {
+        // Inverte posições Z e facing de todos os jogadores
+        this.players.forEach(p => {
+            p.z = -p.z;
+            p.facingZ = -p.facingZ;
+        });
+        // Inverte a bola também
+        this.ball.z = -this.ball.z;
+        if (this.ball.isMoving) {
+            this.ball.startZ = -this.ball.startZ;
+            this.ball.targetZ = -this.ball.targetZ;
+        }
+        // Reset posições para posições iniciais invertidas
+        this.resetPositions();
+    }
+
     triggerSideBounce() {
         if (!this.ballBounce) return false;
         
@@ -544,6 +572,14 @@ export class GameEngine {
             this.magneticBall = action.active;
             return;
         }
+        if (action.type === 'setGameTime') {
+            this.TIME_PER_HALF = action.seconds || 120;
+            this.gameTime = this.TIME_PER_HALF;
+            this.currentHalf = 1;
+            this.score = { A: 0, B: 0 };
+            this.resetPositions();
+            return;
+        }
 
         let targetPlayer = this.players.find(pl => pl.id === playerId);
         
@@ -562,6 +598,32 @@ export class GameEngine {
         }
 
         const p = targetPlayer;
+
+        // Processa configurações de nome antes da validação de partida ativa
+        if (action.type === 'config') {
+            if (action.name) {
+                p.name = action.name.substring(0, 50);
+                if (action.isTeamName) {
+                    if (p.team === 'A') this.teamNames.A = p.name;
+                    if (p.team === 'B') this.teamNames.B = p.name;
+                } else {
+                    if (p.team === 'A') this.teamNames.A = "Brasil";
+                    if (p.team === 'B') this.teamNames.B = "Argentina";
+                }
+            }
+            if (action.number !== undefined) p.number = parseInt(action.number);
+            return; // Config processada, encerra execução.
+        }
+
+        if (action.type === 'stopGame') {
+            this.isGameActive = false;
+            return;
+        }
+
+        // Bloquear todas as ações (incluindo fala/pensamento) se a partida não estiver ativa
+        if (!this.isGameActive) {
+            return;
+        }
 
         // Processamento global de fala (balão de texto)
         const speechText = action.text || action.thinking;
@@ -654,10 +716,6 @@ export class GameEngine {
                     p.cooldown = 0.5; // Cooldown um pouco maior para evitar spam de puxada
                 }
             }
-        }
-        else if (action.type === 'config') {
-            if (action.name) p.name = action.name.substring(0, 50);
-            if (action.number !== undefined) p.number = parseInt(action.number);
         }
         else if (action.type === 'speak') {
             p.message = action.text.substring(0, 100);
@@ -766,7 +824,11 @@ export class GameEngine {
                 };
             }),
             score: this.score,
+            teamNames: this.teamNames,
             gameTime: this.gameTime,
+            timePerHalf: this.TIME_PER_HALF,
+            currentHalf: this.currentHalf,
+            isGameActive: this.isGameActive,
             isGoal: this.isGoal
         };
     }

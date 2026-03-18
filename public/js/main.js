@@ -254,6 +254,51 @@ function setupSocket() {
         
         document.getElementById('score-a').innerText = state.score.A;
         document.getElementById('score-b').innerText = state.score.B;
+        if (state.teamNames) {
+            const timeA = document.querySelector('.time-a');
+            const timeB = document.querySelector('.time-b');
+            if (timeA) timeA.innerText = state.teamNames.A.toUpperCase();
+            if (timeB) timeB.innerText = state.teamNames.B.toUpperCase();
+        }
+
+        // HUD visibility based on mode
+        const clockContainer = document.getElementById('clock-container');
+        if (clockContainer) {
+            clockContainer.style.display = (state.mode === 'train') ? 'none' : 'flex';
+        }
+
+        // Clock update (conic-gradient)
+        const clockFill = document.getElementById('clock-fill');
+        const halfIndicator = document.getElementById('half-indicator');
+        const gameTimeText = document.getElementById('game-time');
+        
+        if (state.gameTime !== undefined && state.mode !== 'train') {
+            const timeVal = Math.max(0, state.gameTime);
+            const mins = Math.floor(timeVal / 60).toString().padStart(2, '0');
+            const secs = Math.floor(timeVal % 60).toString().padStart(2, '0');
+            if (gameTimeText) gameTimeText.innerText = `${mins}:${secs}`;
+
+            if (clockFill) {
+                const totalHalf = state.timePerHalf || 120; // Utiliza tempo configurado pelo engine
+                const pct = Math.max(0, Math.min(100, (timeVal / totalHalf) * 100));
+                let color = '#10b981'; // green
+                if (pct <= 20) color = '#ef4444'; // red
+                else if (pct <= 50) color = '#eab308'; // yellow
+                clockFill.style.background = `conic-gradient(${color} ${pct}%, rgba(255,255,255,0.1) ${pct}%)`;
+            }
+        }
+        if (halfIndicator && state.currentHalf !== undefined) {
+            if (state.isGameActive === false && state.gameTime <= 0 && state.currentHalf === 2) {
+                halfIndicator.innerText = 'FIM!';
+                halfIndicator.style.background = 'rgba(239,68,68,0.5)';
+            } else if (state.currentHalf === 2) {
+                halfIndicator.innerText = '2º T';
+                halfIndicator.style.background = 'rgba(244,114,182,0.4)';
+            } else {
+                halfIndicator.innerText = '1º T';
+                halfIndicator.style.background = 'rgba(0,0,0,0.7)';
+            }
+        }
         
         const msg = document.getElementById('center-messages');
         if (state.isGoal) {
@@ -285,7 +330,18 @@ function setupUI() {
         startScreen.style.display = 'none';
         Sound.init();
         selectedPlayerId = prompt("Escolha seu Player ID (1-10):", "2");
-        if (selectedPlayerId) socket.emit('join', { playerId: parseInt(selectedPlayerId), mode: 'play' });
+        const gameTime = localStorage.getItem('arena_game_time_minutes') || 2;
+        const p1Name = localStorage.getItem('arena_p1_name') || "";
+        const p2Name = localStorage.getItem('arena_p2_name') || "";
+        const p1IsTeam = localStorage.getItem('arena_p1_is_team') === 'true';
+        const p2IsTeam = localStorage.getItem('arena_p2_is_team') === 'true';
+        
+        if (selectedPlayerId) socket.emit('join', { 
+            playerId: parseInt(selectedPlayerId), 
+            mode: 'play', 
+            gameTime,
+            p1Name, p2Name, p1IsTeam, p2IsTeam
+        });
     });
 
     document.getElementById('btn-treinar').addEventListener('click', () => {
@@ -297,8 +353,20 @@ function setupUI() {
         document.getElementById('mode-ctrl-title').innerText = "Opções de Treino";
         document.getElementById('gk-ctrl-label').style.display = 'flex';
         document.getElementById('opponent-ctrl-label').style.display = 'none';
-        
-        socket.emit('join', { playerId: selectedPlayerId, mode: 'train', autoGk: ingameChkGk.checked });
+        document.getElementById('bounce-ctrl-label').style.display = 'none';
+        const gameTime = localStorage.getItem('arena_game_time_minutes') || 2;
+        const p1Name = localStorage.getItem('arena_p1_name') || "";
+        const p2Name = localStorage.getItem('arena_p2_name') || "";
+        const p1IsTeam = localStorage.getItem('arena_p1_is_team') === 'true';
+        const p2IsTeam = localStorage.getItem('arena_p2_is_team') === 'true';
+
+        socket.emit('join', { 
+            playerId: selectedPlayerId, 
+            mode: 'train', 
+            autoGk: ingameChkGk.checked, 
+            gameTime,
+            p1Name, p2Name, p1IsTeam, p2IsTeam
+        });
     });
 
     document.getElementById('btn-mano').addEventListener('click', () => {
@@ -311,10 +379,22 @@ function setupUI() {
         document.getElementById('gk-ctrl-label').style.display = 'none';
         document.getElementById('opponent-ctrl-label').style.display = 'flex';
         document.getElementById('bounce-ctrl-label').style.display = 'flex';
-
         const autoOpponent = document.getElementById('ingame-chk-opponent').checked;
         const ballBounce = document.getElementById('ingame-chk-bounce').checked;
-        socket.emit('join', { playerId: selectedPlayerId, mode: '1v1', autoOpponent, ballBounce });
+        const gameTime = localStorage.getItem('arena_game_time_minutes') || 2;
+        const p1Name = localStorage.getItem('arena_p1_name') || "";
+        const p2Name = localStorage.getItem('arena_p2_name') || "";
+        const p1IsTeam = localStorage.getItem('arena_p1_is_team') === 'true';
+        const p2IsTeam = localStorage.getItem('arena_p2_is_team') === 'true';
+
+        socket.emit('join', { 
+            playerId: selectedPlayerId, 
+            mode: '1v1', 
+            autoOpponent, 
+            ballBounce, 
+            gameTime,
+            p1Name, p2Name, p1IsTeam, p2IsTeam
+        });
     });
 
     // Listener para o toggle do goleiro in-game com persistência
@@ -385,5 +465,10 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+
+window.toggleMenu = function() {
+    const menu = document.getElementById('game-menu');
+    menu.classList.toggle('minimized');
+};
 
 init();

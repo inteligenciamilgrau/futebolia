@@ -60,7 +60,6 @@ io.on('connection', (socket) => {
         if (mode === 'train') roomId = 'train';
         if (mode === 'play') roomId = 'play';
         
-        // Aplica configurações se a sala já existir
         const game = rooms.get(roomId);
         if (game) {
             if (mode === 'train') game.autoGk = autoGk;
@@ -68,6 +67,19 @@ io.on('connection', (socket) => {
                 game.autoOpponent = autoOpponent;
                 game.ballBounce = ballBounce;
             }
+            // Sincroniza o tempo se fornecido
+            if (typeof data === 'object' && data.gameTime) {
+                game.TIME_PER_HALF = parseInt(data.gameTime) * 60;
+                game.reset(); // Reinicia para aplicar o novo tempo
+            }
+
+            // Reaplica nomes customizados se fornecidos
+            if (typeof data === 'object') {
+                if (data.p1Name) game.handleAction(1, { type: 'config', name: data.p1Name, isTeamName: data.p1IsTeam });
+                if (data.p2Name) game.handleAction(6, { type: 'config', name: data.p2Name, isTeamName: data.p2IsTeam });
+            }
+
+            game.isGameActive = true;
         }
 
         socket.join(roomId);
@@ -75,7 +87,7 @@ io.on('connection', (socket) => {
         socket.playerId = playerId;
         console.log(`Socket ${socket.id} entrou na sala ${roomId} como jogador ${playerId}`);
         
-        socket.emit('init', rooms.get(roomId).getState());
+        socket.emit('init', game ? game.getState() : null);
     });
 
     socket.on('action', (action) => {

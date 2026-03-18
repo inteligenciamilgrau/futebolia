@@ -27,11 +27,11 @@
                 radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
             color: var(--text);
-            min-height: 100vh;
-            padding: 2rem;
+            height: 100vh;
+            padding: 1rem;
             display: grid;
-            grid-template-columns: 350px 1fr 350px;
-            gap: 2rem;
+            grid-template-columns: 340px 1fr 340px;
+            gap: 1rem;
             overflow: hidden;
         }
 
@@ -92,7 +92,9 @@
         .arena-main {
             display: flex;
             flex-direction: column;
-            gap: 2rem;
+            gap: 0.5rem;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .game-state-card {
@@ -109,8 +111,10 @@
         }
 
         .pitch-svg {
-            width: 400px;
-            height: 600px;
+            width: 100%;
+            max-width: 380px;
+            height: auto;
+            max-height: 100%;
             opacity: 0.5;
         }
 
@@ -131,8 +135,8 @@
             background: var(--primary);
             color: white;
             border: none;
-            padding: 1rem;
-            border-radius: 16px;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
@@ -141,6 +145,7 @@
             justify-content: center;
             gap: 0.5rem;
             font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
         }
 
         .btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
@@ -151,14 +156,32 @@
         .btn-play { background: var(--secondary); }
         .btn-stop { background: #ef4444; }
 
+        .controls-bar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0,0,0,0.6);
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .controls-bar .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+        }
+
         /* Log / Console */
         .console {
-            height: 200px;
+            min-height: 80px;
+            max-height: 140px;
+            flex-shrink: 0;
             background: #000;
-            border-radius: 16px;
-            padding: 1rem;
+            border-radius: 12px;
+            padding: 0.75rem;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #10b981;
             overflow-y: auto;
             border: 1px solid rgba(16, 185, 129, 0.2);
@@ -173,11 +196,6 @@
         .player1-header { color: var(--brasil); }
         .player2-header { color: var(--argentina); }
 
-        .controls-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
 
         #goal-notification {
             position: absolute;
@@ -201,13 +219,17 @@
             display: none; /* Default hidden */
         }
         .show-coords .coord-label { display: block; }
-        /* Prompt Modal */
-        #prompt-modal {
+        /* General Modal */
+        #general-modal {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
             z-index: 1000;
-            display: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none; /* hidden by default */
             padding: 2rem;
             animation: fadeIn 0.3s ease;
         }
@@ -215,16 +237,27 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .modal-content {
-            max-width: 900px;
-            margin: 0 auto;
+            width: 100%;
+            max-width: 600px;
             background: var(--card);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             border-radius: 24px;
-            height: 80vh;
             display: flex;
             flex-direction: column;
             padding: 2rem;
-            gap: 1rem;
+            gap: 1.5rem;
+            margin: auto;
+        }
+
+        .modal-content.large {
+            max-width: 900px;
+            height: 80vh;
+        }
+
+        .modal-content.error {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.1);
         }
 
         .modal-header {
@@ -233,17 +266,33 @@
             align-items: center;
         }
 
-        #prompt-body {
+        #modal-body {
             flex: 1;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        #modal-body pre {
             background: #000;
             border-radius: 12px;
             padding: 1rem;
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.85rem;
+            overflow: auto;
+            max-height: 100%;
+        }
+
+        .log-player {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+            padding: 1rem;
+            font-size: 0.8rem;
             color: #10b981;
             overflow-y: auto;
             white-space: pre-wrap;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.1);
         }
 
         .btn-view-prompt {
@@ -280,6 +329,10 @@
                 <input type="text" id="p1-name" placeholder="Brasil P1" style="flex: 1;">
                 <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(1)">Set</button>
             </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: -0.2rem;">
+                <input type="checkbox" id="p1-is-team" style="width: auto;" onchange="updateName(1)">
+                <label for="p1-is-team" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; text-transform: none;">Usar como Nome do Time</label>
+            </div>
         </div>
 
         <div>
@@ -315,14 +368,18 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
             <button class="btn" style="margin-left: 1rem; padding: 0.75rem 1.5rem;" onclick="refreshModels()">🔄 Sync</button>
         </div>
 
-        <div class="panel" style="padding: 1rem; flex-direction: row; align-items: center; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 1rem;">
+        <div class="panel" style="padding: 0.5rem 1rem; flex-direction: row; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
                 <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
-                <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0;">Coordenadas (A-J)</label>
+                <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">Coords</label>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
                 <input type="checkbox" id="toggle-magnetic" style="width: auto;" checked onchange="updateMagneticBall()">
-                <label for="toggle-magnetic" style="cursor: pointer; margin-bottom: 0; color: #ffeb3b;">🧲 Bola Magnética</label>
+                <label for="toggle-magnetic" style="cursor: pointer; margin-bottom: 0; color: #ffeb3b; font-size: 0.65rem;">🧲 Magnética</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <label for="game-time-config" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; white-space: nowrap;">⏱ Tempo (min)</label>
+                <input type="number" id="game-time-config" value="2" min="1" max="10" step="1" style="width: 50px; padding: 0.3rem 0.5rem; font-size: 0.75rem; text-align: center;" onchange="saveGameTimeConfig()">
             </div>
         </div>
 
@@ -330,17 +387,32 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
             <div id="goal-notification">GOL!</div>
             <div class="stats-overlay">
                 <div class="stat-item">
-                    <div class="stat-value" id="score-a" style="color: var(--brasil);">0</div>
-                    <div class="stat-label">Brasil</div>
+                    <div class="stat-value" id="score-a" style="color: var(--brasil); font-size: 1.5rem;">0</div>
+                    <div class="stat-label" id="team-a-label">Brasil</div>
                 </div>
-                <div class="stat-item" style="display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: 0.5; padding-top: 10px;">X</div>
+                <div class="stat-item" style="display: flex; align-items: center; justify-content: center; font-size: 18px; opacity: 0.5; padding-top: 5px;">X</div>
                 <div class="stat-item">
-                    <div class="stat-value" id="score-b" style="color: var(--argentina);">0</div>
-                    <div class="stat-label">Argentina</div>
+                    <div class="stat-value" id="score-b" style="color: var(--argentina); font-size: 1.5rem;">0</div>
+                    <div class="stat-label" id="team-b-label">Argentina</div>
                 </div>
-                <div class="stat-item" style="margin-left: 2rem;">
-                    <div class="stat-value" id="game-time" style="font-size: 1.5rem; margin-top: 0.5rem;">05:00</div>
-                    <div class="stat-label">Tempo</div>
+                <div class="stat-item" style="margin-left: 1.5rem; display: flex; flex-direction: column; align-items: center;">
+                    <div id="clock-wrapper" style="width: 56px; height: 56px; border-radius: 50%; background-color: rgba(0,0,0,0.6); border: 3px solid #fff; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.5);">
+                        <div id="clock-fill" style="width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(#10b981 100%, transparent 0); transition: background 0.5s linear;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <div class="stat-value" id="game-time" style="font-size: 0.8rem; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">02:00</div>
+                        </div>
+                    </div>
+                    <div id="half-label" style="font-size: 0.65rem; margin-top: 4px; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 10px; color: #fff;">1º T</div>
+                </div>
+            </div>
+            <div style="position: absolute; top: 1rem; right: 1.5rem; display: flex; gap: 1rem; text-align: center;">
+                <div class="stat-item">
+                    <div class="stat-value" id="api-total" style="font-size: 1rem; color: #a78bfa;">0</div>
+                    <div class="stat-label">📡 Requests</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="api-rpm" style="font-size: 1rem; color: #f472b6;">0</div>
+                    <div class="stat-label">⚡ RPM</div>
                 </div>
             </div>
             
@@ -370,12 +442,13 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
             </svg>
         </div>
 
-        <div class="controls-row">
-            <button class="btn btn-step" onclick="takeStep()">⚡ Executar Turno (Single)</button>
-            <div style="display: flex; gap: 0.5rem;">
-                <button id="btn-play" class="btn btn-play" style="flex: 1;" onclick="startLoop()">▶ Iniciar Arena Loop</button>
-                <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
-            </div>
+        <div class="controls-bar">
+            <button class="btn" style="background: rgba(255,255,255,0.1); margin-right: 0.5rem;" onclick="restartGame()">🔄 Reset</button>
+            <button class="btn" style="background: rgba(239, 68, 68, 0.2); margin-right: 0.5rem; color: #f87171;" onclick="endGame()">🏁 Encerrar Partida</button>
+            <button class="btn btn-step" onclick="takeStep()">⚡ Turno</button>
+            <button id="btn-play" class="btn btn-play" onclick="startLoop()">▶ Arena Loop</button>
+            <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
+            <span id="game-status-badge" style="font-size: 0.65rem; color: #94a3b8; margin-left: 0.5rem;"></span>
         </div>
 
         <div id="log-console" class="console">
@@ -405,6 +478,10 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
                 <input type="text" id="p2-name" placeholder="Argentina P2" style="flex: 1;">
                 <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(2)">Set</button>
             </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: -0.2rem;">
+                <input type="checkbox" id="p2-is-team" style="width: auto;" onchange="updateName(2)">
+                <label for="p2-is-team" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; text-transform: none;">Usar como Nome do Time</label>
+            </div>
         </div>
 
         <div>
@@ -425,13 +502,13 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
     </div>
 
     <!-- Modal for Prompt Viewing -->
-    <div id="prompt-modal">
+    <div id="general-modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modal-title">Último Prompt Enviado</h2>
-                <button class="btn btn-stop" style="padding: 0.5rem 1rem;" onclick="closePromptModal()">X</button>
+                <h2 id="modal-title">Título do Modal</h2>
+                <button class="btn btn-stop" style="padding: 0.5rem 1rem;" onclick="closeModal()">X</button>
             </div>
-            <div id="prompt-body">Nenhum prompt enviado ainda. Execute um turno primeiro.</div>
+            <div id="modal-body">Conteúdo do modal...</div>
             <div style="font-size: 0.8rem; color: #94a3b8; text-align: center;">Pressione ESC ou clique em X para fechar</div>
         </div>
     </div>
@@ -440,6 +517,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         let isRunning = false;
         let lastState = null;
         let lastPrompts = { 1: null, 2: null };
+        let apiRequestTimestamps = [];
+        let apiRequestCount = 0;
+        let isSynced = false; // Flag de controle de sincronização
 
 
         // Configuration Persistence
@@ -453,6 +533,13 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
             document.getElementById('api-host').addEventListener('change', (e) => {
                 localStorage.setItem('arena_api_host', e.target.value);
+                isSynced = false; // Reset de sincronia ao mudar host
+                localStorage.setItem('arena_is_synced', 'false');
+            });
+
+            document.getElementById('api-key').addEventListener('change', (e) => {
+                isSynced = false; // Reset de sincronia ao mudar key
+                localStorage.setItem('arena_is_synced', 'false');
             });
 
             // Activity Persistence
@@ -460,6 +547,24 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const p2Active = localStorage.getItem('arena_p2_active') !== 'false';
             document.getElementById('p1-active').checked = p1Active;
             document.getElementById('p2-active').checked = p2Active;
+
+            // Name Persistence
+            const p1Name = localStorage.getItem('arena_p1_name');
+            const p2Name = localStorage.getItem('arena_p2_name');
+            if (p1Name) document.getElementById('p1-name').value = p1Name;
+            if (p2Name) document.getElementById('p2-name').value = p2Name;
+
+            const p1IsTeam = localStorage.getItem('arena_p1_is_team') === 'true';
+            document.getElementById('p1-is-team').checked = p1IsTeam;
+            const p2IsTeam = localStorage.getItem('arena_p2_is_team') === 'true';
+            document.getElementById('p2-is-team').checked = p2IsTeam;
+
+            // Alerta inicial de sincronia
+            setTimeout(() => {
+                if (p1Name) updateName(1);
+                if (p2Name) updateName(2);
+            }, 1000);
+
 
             const magActive = localStorage.getItem('arena_magnetic_ball') !== 'false';
             document.getElementById('toggle-magnetic').checked = magActive;
@@ -473,9 +578,42 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 localStorage.setItem('arena_p2_model', e.target.value);
             });
 
+            // Game time config persistence
+            const savedTime = localStorage.getItem('arena_game_time_minutes');
+            if (savedTime) {
+                document.getElementById('game-time-config').value = savedTime;
+                // Sincroniza logo de cara se possível
+                saveGameTimeConfig();
+            }
+
             initCoordLabels();
             fetchGameState();
+
+            // RPM updater every 2s
+            setInterval(updateRpmDisplay, 2000);
+
+            // Auto-sync se já foi sincronizado com sucesso antes
+            if (localStorage.getItem('arena_is_synced') === 'true') {
+                refreshModels();
+            }
         });
+
+        async function saveGameTimeConfig() {
+            const val = document.getElementById('game-time-config').value;
+            localStorage.setItem('arena_game_time_minutes', val);
+            
+            // Sincroniza com o servidor imediatamente
+            const timeSeconds = (parseInt(val) || 2) * 60;
+            await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
+            log(`Tempo de jogo sincronizado: ${val}min`);
+        }
+
+        function updateRpmDisplay() {
+            const now = Date.now();
+            apiRequestTimestamps = apiRequestTimestamps.filter(t => now - t < 60000);
+            document.getElementById('api-rpm').innerText = apiRequestTimestamps.length;
+            document.getElementById('api-total').innerText = apiRequestCount;
+        }
 
         function updateCoordsVisibility() {
             const isChecked = document.getElementById('toggle-coords').checked;
@@ -579,9 +717,14 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                     p2Select.add(opt2);
                 });
 
+                isSynced = true; // Sincronia confirmada!
+                localStorage.setItem('arena_is_synced', 'true');
                 log("Modelos sincronizados!");
+                saveGameTimeConfig(); // Sincroniza o tempo junto com os modelos
                 return true;
             } catch (err) {
+                isSynced = false;
+                localStorage.setItem('arena_is_synced', 'false');
                 log(`Erro ao buscar modelos: ${err.message}`, 'log-error');
                 return false;
             }
@@ -600,10 +743,51 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         function updateVisual(state) {
             document.getElementById('score-a').innerText = state.score.A;
             document.getElementById('score-b').innerText = state.score.B;
+            if (state.teamNames) {
+                document.getElementById('team-a-label').innerText = state.teamNames.A;
+                document.getElementById('team-b-label').innerText = state.teamNames.B;
+            }
             
-            const mins = Math.floor(state.gameTime / 60).toString().padStart(2, '0');
-            const secs = Math.floor(state.gameTime % 60).toString().padStart(2, '0');
-            document.getElementById('game-time').innerText = `${mins}:${secs}`;
+            const timeVal = Math.max(0, state.gameTime);
+            const mins = Math.floor(timeVal / 60).toString().padStart(2, '0');
+            const secs = Math.floor(timeVal % 60).toString().padStart(2, '0');
+
+            const clockWrap = document.getElementById('clock-wrapper');
+            const halfLabel = document.getElementById('half-label');
+            
+            if (state.mode === 'train') {
+                if (clockWrap) clockWrap.style.display = 'none';
+                if (halfLabel) halfLabel.style.display = 'none';
+            } else {
+                if (clockWrap) clockWrap.style.display = 'block';
+                if (halfLabel) halfLabel.style.display = 'block';
+                
+                document.getElementById('game-time').innerText = `${mins}:${secs}`;
+                const totalTime = state.timePerHalf || ((parseInt(document.getElementById('game-time-config').value) || 2) * 60);
+                const pct = Math.max(0, Math.min(100, (timeVal / totalTime) * 100));
+                let clockColor = '#10b981'; // green
+                if (pct <= 20) clockColor = '#ef4444'; // red
+                else if (pct <= 50) clockColor = '#eab308'; // yellow
+                document.getElementById('clock-fill').style.background = `conic-gradient(${clockColor} ${pct}%, rgba(255,255,255,0.08) ${pct}%)`;
+
+                if (state.currentHalf === 2) {
+                    halfLabel.innerText = '2º T';
+                    halfLabel.style.background = 'rgba(244,114,182,0.4)';
+                } else {
+                    halfLabel.innerText = '1º T';
+                    halfLabel.style.background = 'rgba(0,0,0,0.7)';
+                }
+            }
+
+            // Game status badge
+            const badge = document.getElementById('game-status-badge');
+            if (state.isGameActive === false && state.gameTime <= 0 && state.currentHalf === 2) {
+                badge.innerText = '🏁 FIM DE JOGO';
+                badge.style.color = '#ef4444';
+                if (isRunning) stopLoop();
+            } else {
+                badge.innerText = '';
+            }
 
             const dynamic = document.getElementById('dynamic-elements');
             dynamic.innerHTML = "";
@@ -696,8 +880,18 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             
             // Definições fixas do campo traduzido
             const field = { width: 200, length: 300 };
-            const myGoal = { x: 100, y: playerNum === 1 ? 300 : 0 };
-            const targetGoal = { x: 100, y: playerNum === 1 ? 0 : 300 };
+            // No 2º tempo os lados estão invertidos
+            const half = lastState.currentHalf || 1;
+            let myGoalY, targetGoalY;
+            if (half === 1) {
+                myGoalY = playerNum === 1 ? 300 : 0;
+                targetGoalY = playerNum === 1 ? 0 : 300;
+            } else {
+                myGoalY = playerNum === 1 ? 0 : 300;
+                targetGoalY = playerNum === 1 ? 300 : 0;
+            }
+            const myGoal = { x: 100, y: myGoalY };
+            const targetGoal = { x: 100, y: targetGoalY };
 
             // Calculando posse de bola (distância < 15 unidades internas)
             const distBall = Math.sqrt(Math.pow(meData.x - lastState.ball.x, 2) + Math.pow(meData.z - lastState.ball.z, 2));
@@ -731,6 +925,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 lastPrompts[playerNum] = payload;
 
                 log(`P${playerNum} pensando...`, `log-player${playerNum}`);
+                apiRequestCount++;
+                apiRequestTimestamps.push(Date.now());
+                updateRpmDisplay();
                 const response = await fetch(`${host}/chat/completions`, {
                     method: 'POST',
                     headers: {
@@ -786,36 +983,67 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         async function updateName(playerNum) {
             const nameInput = document.getElementById(`p${playerNum}-name`);
             const name = nameInput.value;
+            const isTeamName = document.getElementById(`p${playerNum}-is-team`).checked;
             if (!name) return;
             
+            localStorage.setItem(`arena_p${playerNum}_name`, name);
+            localStorage.setItem(`arena_p${playerNum}_is_team`, isTeamName);
             log(`P${playerNum} alterando nome para: ${name}...`);
             await sendToGame(playerNum, {
                 type: 'config',
                 name: name,
-                number: playerNum === 1 ? 10 : 7 // Números padrão
+                number: playerNum === 1 ? 10 : 7,
+                isTeamName: isTeamName
             });
         }
 
-        async function takeStep() {
-            const p1Select = document.getElementById('p1-model');
-            
-            // Só tenta sincronizar se não houver modelos (Exceto o default vazio)
-            if (p1Select.options.length <= 1) {
-                if (!document.getElementById('api-host').value || !document.getElementById('api-key').value) {
-                    alert("Modelos não sincronizados. Por favor, configure o API Host e a API Key.");
-                    return;
-                }
+        function validateSetup() {
+            const p1Active = document.getElementById('p1-active').checked;
+            const p2Active = document.getElementById('p2-active').checked;
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value;
 
-                log("Sincronizando modelos automaticamente...");
-                const synced = await refreshModels();
-                if (!synced) {
-                    alert("Não foi possível sincronizar os modelos automaticamente. Verifique sua chave e host.");
-                    return;
-                }
+            // 1. Verificação básica de Host se algum player estiver ativo
+            if ((p1Active || p2Active) && !host) {
+                openModal("Configuração Incompleta", "Você precisa preencher o <b>API Host</b> antes de realizar jogadas.", "error");
+                return false;
+            }
+
+            const p1Select = document.getElementById('p1-model');
+            const p2Select = document.getElementById('p2-model');
+
+            // 2. Bloqueio por falta de sincronização explícita
+            if (!isSynced) {
+                openModal("Sincronização Necessária", "Você mudou as configurações ou ainda não carregou os modelos. Clique em <b>Sincronizar Modelos</b> antes de iniciar.", "error");
+                return false;
+            }
+
+            // 3. Verificar se há modelos selecionados para os ativos
+            if (p1Active && !p1Select.value) {
+                openModal("Modelo não Selecionado", "Por favor, selecione um modelo para o <b>Brasil (P1)</b>.", "error");
+                return false;
+            }
+            if (p2Active && !p2Select.value) {
+                openModal("Modelo não Selecionado", "Por favor, selecione um modelo para a <b>Argentina (P2)</b>.", "error");
+                return false;
+            }
+
+            return true;
+        }
+
+        async function takeStep() {
+            if (!validateSetup()) {
+                if (isRunning) stopLoop();
+                return;
             }
 
             await fetchGameState();
             
+            if (!lastState || !lastState.isGameActive) {
+                log("Ação bloqueada: A partida ainda não começou no menu inicial!", "log-error");
+                return;
+            }
+
             // Brasil turn (P1)
             if (document.getElementById('p1-active').checked) {
                 const p1Action = await askAI(1);
@@ -866,17 +1094,53 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             await fetchGameState();
         }
 
+        async function restartGame() {
+            const timeMinutes = parseInt(document.getElementById('game-time-config').value) || 2;
+            const timeSeconds = timeMinutes * 60;
+            log(`Reiniciando a partida! Tempo configurado para: ${timeMinutes}min`);
+            await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
+            
+            // Força a atualização do visual imediatamente
+            lastState = null;
+            await fetchGameState();
+        }
+
+        async function endGame() {
+            if (!confirm("Deseja realmente encerrar a partida atual?")) return;
+            log("Encerrando a partida oficialmente...");
+            await sendToGame(1, { type: 'stopGame' });
+            
+            // Força a atualização do visual imediatamente
+            lastState = null;
+            await fetchGameState();
+        }
+
         let loopTimer = null;
         async function startLoop() {
+            if (!validateSetup()) return;
+
             isRunning = true;
             document.getElementById('btn-play').style.display = 'none';
-            document.getElementById('btn-stop').style.display = 'block';
-            log("Loop de Arena iniciado!");
+            document.getElementById('btn-stop').style.display = 'inline-flex';
+            document.getElementById('game-status-badge').innerText = '';
+
+            // Resetar estado local para garantir sincronia antes de iniciar
+            lastState = null;
+            await fetchGameState();
+
+            log("Loop de Arena ativado!");
             runLoop();
         }
 
         async function runLoop() {
             if (!isRunning) return;
+            
+            if (!lastState || !lastState.isGameActive) {
+                log("Aguardando início da partida em index.html...", "log-system");
+                loopTimer = setTimeout(runLoop, 2000);
+                return;
+            }
+
             await takeStep();
             loopTimer = setTimeout(runLoop, 200);
         }
@@ -889,29 +1153,37 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             log("Loop de Arena parado.");
         }
 
-        function openPromptModal(playerNum) {
-            const modal = document.getElementById('prompt-modal');
-            const body = document.getElementById('prompt-body');
-            const title = document.getElementById('modal-title');
+        function openModal(title, body, type = '') {
+            const modal = document.getElementById('general-modal');
+            const content = modal.querySelector('.modal-content');
             
-            title.innerText = `Último Prompt - ${playerNum === 1 ? 'Brasil (P1)' : 'Argentina (P2)'}`;
-            
-            if (lastPrompts[playerNum]) {
-                body.innerText = JSON.stringify(lastPrompts[playerNum], null, 2);
-            } else {
-                body.innerText = "Nenhum prompt enviado ainda para este jogador. Execute um turno para capturar os dados.";
-            }
-            
-            modal.style.display = 'block';
+            // Limpa classes anteriores
+            content.classList.remove('large', 'error');
+            if (type) content.classList.add(type);
+
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = body;
+            modal.style.display = 'flex';
         }
 
-        function closePromptModal() {
-            document.getElementById('prompt-modal').style.display = 'none';
+        function closeModal() {
+            document.getElementById('general-modal').style.display = 'none';
+        }
+
+        function openPromptModal(playerNum) {
+            const title = `Último Prompt - ${playerNum === 1 ? 'Brasil (P1)' : 'Argentina (P2)'}`;
+            let body = "";
+            if (lastPrompts[playerNum]) {
+                body = `<pre>${JSON.stringify(lastPrompts[playerNum], null, 2)}</pre>`;
+            } else {
+                body = "Nenhum prompt enviado ainda para este jogador. Execute um turno para capturar os dados.";
+            }
+            openModal(title, body, 'large');
         }
 
         // Close on ESC
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePromptModal();
+            if (e.key === 'Escape') closeModal();
         });
 
         setInterval(fetchGameState, 500);

@@ -18,25 +18,6 @@ body {
     flex-direction: column;
     justify-content: space-between;
 }
-#training-controls {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background: rgba(255, 255, 255, 0.2);
-    padding: 15px 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    backdrop-filter: blur(10px);
-    pointer-events: auto;
-}
-#training-controls h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    color: #4CAF50;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    font-weight: 800;
-}
 #placar-container {
     display: flex;
     justify-content: center;
@@ -54,8 +35,8 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
 }
-.time-a { color: #fde100; } /* Amarelo Brasil */
-.time-b { color: #75b2dd; } /* Azul Argentina */
+.time-a { color: #fde100; margin-right: 25px; } /* Amarelo Brasil */
+.time-b { color: #75b2dd; margin-left: 25px; } /* Azul Argentina */
 
 #clock-container {
     display: flex;
@@ -71,6 +52,18 @@ body {
     background-color: rgba(0, 0, 0, 0.5);
     border: 2px solid #fff;
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-time {
+    position: absolute;
+    font-size: 10px;
+    font-weight: 800;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+    z-index: 2;
 }
 #clock-fill {
     width: 100%;
@@ -86,34 +79,145 @@ body {
     border-radius: 10px;
 }
 
-#instructions {
-    background: rgba(10, 20, 30, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: white;
-    padding: 15px 25px;
-    margin: 20px;
-    border-radius: 12px;
-    align-self: flex-start;
-    pointer-events: auto;
+/* Menu Unificado de Opções e Controles */
+#game-menu {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 280px;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    min-width: 220px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+    color: white;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    overflow: hidden;
 }
-#instructions h3 { 
-    margin: 0; 
-    color: #ffff55; 
-    cursor: pointer; 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    font-size: 16px; 
+
+#game-menu.minimized {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.9);
 }
-#instructions-content { 
-    display: none; 
-    margin-top: 15px; 
+
+#game-menu.minimized #menu-header {
+    padding: 0;
+    justify-content: center;
 }
-#instructions ul { padding-left: 20px; margin-bottom: 0; }
+
+#game-menu.minimized #menu-icon {
+    margin-right: 0;
+}
+
+#menu-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    user-select: none;
+    height: 48px;
+}
+
+#menu-icon {
+    font-size: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+#menu-title {
+    font-weight: 700;
+    font-size: 14px;
+    flex-grow: 1;
+    white-space: nowrap;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+#game-menu.minimized #menu-title,
+#game-menu.minimized #menu-toggle-arrow {
+    display: none;
+}
+
+#menu-toggle-arrow {
+    font-size: 10px;
+    transition: transform 0.3s;
+}
+
+#game-menu:not(.minimized) #menu-toggle-arrow {
+    transform: rotate(180deg);
+}
+
+#menu-content {
+    padding: 16px;
+    opacity: 1;
+    transition: opacity 0.3s;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+#game-menu.minimized #menu-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Seções Internas */
+#training-controls, #instructions {
+    margin-bottom: 20px;
+}
+
+#training-controls:last-child, #instructions:last-child {
+    margin-bottom: 0;
+}
+
+#game-menu h4 {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #94a3b8;
+    border-left: 3px solid #4CAF50;
+    padding-left: 8px;
+}
+
+.gk-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.gk-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#instructions ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#instructions li {
+    font-size: 13px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+}
+
+#instructions li b {
+    color: #fde100;
+}
+
 
 .control-group {
     margin-top: 15px; 
