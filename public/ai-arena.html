@@ -1260,6 +1260,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const simplifiedState = {
                 voca: "Você é o Jogador " + (playerNum === 1 ? `1 (${p1Name})` : `2 (${p2Name})`),
                 campo: field,
+                tempo_restante: Math.floor(lastState.gameTime) + "s",
+                periodo: lastState.currentHalf + "º tempo",
+                placar: lastState.score,
                 posse_de_bola: hasBall,
                 minha_posicao: myPos.x + "," + myPos.y + " (Xadrez: " + myPos.chess + ")",
                 olhando_para: { x: meData.facingX, y: meData.facingZ },
@@ -1267,8 +1270,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 bola: ballPos.x + "," + ballPos.y + " (Xadrez: " + ballPos.chess + ")",
                 adversario: oppPos.x + "," + oppPos.y + " (Xadrez: " + oppPos.chess + ")",
                 meu_gol: myGoal,
-                gol_alvo: targetGoal,
-                placar: lastState.score
+                gol_alvo: targetGoal
             };
 
             try {
@@ -1276,7 +1278,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                     model: model,
                     messages: [
                         { role: "system", content: systemPrompt },
-                        { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300):\n${JSON.stringify(simplifiedState, null, 2)}` }
+                        { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300). TEMPO RESTANTE É CRÍTICO PARA ESTRATÉGIA.\n${JSON.stringify(simplifiedState, null, 2)}` }
                     ],
                     response_format: { type: "json_object" }
                 };

@@ -536,6 +536,13 @@ function setupUI() {
             if (text) action = { type: 'speak', text, isManual: true };
         }
         if (action) socket.emit('action', action);
+
+        // Reset da câmera (Tecla R)
+        if (key === 'r') {
+            camera.position.set(190, 135, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
     });
 
     window.addEventListener('keyup', (e) => {

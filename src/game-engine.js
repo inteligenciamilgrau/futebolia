@@ -769,23 +769,23 @@ export class GameEngine {
         let distFound = RAY_MAX_DIST;
 
         // 3. Cálculo Matemático de Interseção com o GOL (Melhor Precisão)
-        const targetGoalZ = p.team === 'A' ? -150 : 150;
         let goalDist = Infinity;
+        let goalType = "nada";
         
-        // Se a direção do raio aponta para o Z do gol alvo
-        const isPointingToGoal = (p.team === 'A' && p.facingZ < 0) || (p.team === 'B' && p.facingZ > 0);
-        
-        if (isPointingToGoal) {
-            // Distância Z até a linha do gol
-            const dz = targetGoalZ - startZ;
-            // Distância total do raio (d = dz / facingZ)
+        if (p.facingZ !== 0) {
+            // Verifica qual linha de fundo o raio atinge (-150 ou 150)
+            const targetLineZ = p.facingZ < 0 ? -150 : 150;
+            const dz = targetLineZ - startZ;
             const dIntersect = dz / p.facingZ;
             
             if (dIntersect > 0 && dIntersect <= RAY_MAX_DIST) {
-                // Posição X exata na linha do gol
                 const intersectX = startX + p.facingX * dIntersect;
+                // Verifica se está dentro da largura do gol (-30 a 30)
                 if (Math.abs(intersectX) <= 30) {
                     goalDist = dIntersect;
+                    // Brasil (A) busca o gol em -150. Argentina (B) busca o gol em 150.
+                    const isOpponentGoal = (p.team === 'A' && targetLineZ === -150) || (p.team === 'B' && targetLineZ === 150);
+                    goalType = isOpponentGoal ? "gol_adversario" : "meu_gol";
                 }
             }
         }
@@ -793,7 +793,7 @@ export class GameEngine {
         for (let d = 0; d < RAY_MAX_DIST; d += step) {
             // Se o raio encontrou o GOL nesta distância e nada bloqueou antes
             if (d >= goalDist) {
-                detected = "gol";
+                detected = goalType;
                 distFound = d;
                 rayX = startX + p.facingX * d;
                 rayZ = startZ + p.facingZ * d;
