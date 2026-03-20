@@ -227,22 +227,47 @@
         /* Log / Console */
         .console {
             min-height: 80px;
-            max-height: 140px;
+            height: 140px;
             flex-shrink: 0;
             background: #000;
             border-radius: 12px;
             padding: 0.75rem;
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.7rem;
-            color: #10b981;
+            color: #cbd5e1;
             overflow-y: auto;
             border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
+        .resizer {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            cursor: ns-resize;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .resizer:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .resizer::after {
+            content: "";
+            width: 40px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 1px;
+        }
+
         .log-entry { margin-bottom: 0.5rem; border-left: 2px solid #333; padding-left: 0.5rem; }
         .log-time { color: #666; }
-        .log-player1 { border-color: var(--brasil); }
-        .log-player2 { border-color: var(--argentina); }
+        .log-player1 { border-color: var(--brasil); color: var(--brasil); }
+        .log-player2 { border-color: var(--argentina); color: var(--argentina); }
+        .log-system { border-color: var(--accent); color: var(--accent); }
+        .log-error { border-color: #ef4444; color: #ef4444; }
 
         /* Player Colors Headers */
         .player1-header { color: var(--brasil); }
@@ -428,6 +453,10 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
                 <input type="checkbox" id="toggle-parallel" style="width: auto;" checked onchange="updateParallelSetting()">
                 <label for="toggle-parallel" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">🔀 Paralelo</label>
             </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;" id="independent-box">
+                <input type="checkbox" id="toggle-independent" style="width: auto;" onchange="updateIndependentSetting()">
+                <label for="toggle-independent" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">🚀 Independente</label>
+            </div>
             <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
                 <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
                 <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">Coords</label>
@@ -509,10 +538,19 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
                     <span style="color: #60a5fa; font-weight: 900;">T:<span id="p2-total-t">0</span></span>
                 </div>
 
-                <!-- Row 6: Grand Total -->
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding-top: 0.4rem;">
-                    <span style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📈 Soma Total Geral:</span>
-                    <span id="grand-total-sum" style="font-size: 1.4rem; color: #f87171; font-weight: 900; text-shadow: 0 0 15px rgba(248,113,113,0.5);">0</span>
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📡 Requests (P1):</span>
+                        <span id="p1-total-req" class="stat-value" style="font-size: 1.05rem; color: #a78bfa; font-weight: 900;">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📡 Requests (P2):</span>
+                        <span id="p2-total-req" class="stat-value" style="font-size: 1.05rem; color: #a78bfa; font-weight: 900;">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📈 Soma Total Geral:</span>
+                        <span id="grand-total-sum" class="stat-value" style="font-size: 1.4rem; color: #f87171; font-weight: 900; text-shadow: 0 0 15px rgba(248,113,113,0.5);">0</span>
+                    </div>
                 </div>
             </div>
             
@@ -554,6 +592,8 @@ IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
             <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
             <span id="game-status-badge" style="font-size: 0.65rem; color: #94a3b8; margin-left: 0.5rem;"></span>
         </div>
+
+        <div id="console-resizer" class="resizer"></div>
 
         <div id="log-console" class="console">
             <div class="log-entry">Arena iniciada. Aguardando configuração de API...</div>
@@ -625,7 +665,8 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         let lastState = null;
         let lastPrompts = { 1: null, 2: null };
         let apiRequestTimestamps = [];
-        let apiRequestCount = 0;
+        let p1RequestCount = 0;
+        let p2RequestCount = 0;
         let p1Tokens = { 
             current: { prompt: 0, completion: 0, total: 0 },
             total: { prompt: 0, completion: 0, total: 0 }
@@ -636,6 +677,10 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         };
         let grandTotalTokens = 0;
         let isSynced = false; // Flag de controle de sincronização
+        let isP1Thinking = false;
+        let isP2Thinking = false;
+        let lastP1SendTime = 0;
+        let lastP2SendTime = 0;
 
 
         // Configuration Persistence
@@ -666,6 +711,10 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
             const parallelActive = localStorage.getItem('arena_parallel_mode') !== 'false'; 
             document.getElementById('toggle-parallel').checked = parallelActive;
+
+            const independentActive = localStorage.getItem('arena_independent_mode') === 'true'; 
+            document.getElementById('toggle-independent').checked = independentActive;
+            document.getElementById('independent-box').style.display = parallelActive ? 'flex' : 'none';
 
             // Name Persistence
             const p1Name = localStorage.getItem('arena_p1_name');
@@ -714,6 +763,40 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
             setupComboBox('p1');
             setupComboBox('p2');
+
+            // Console Resizer Logic
+            const resizer = document.getElementById('console-resizer');
+            const consoleEl = document.getElementById('log-console');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const container = document.querySelector('.arena-main');
+                const containerRect = container.getBoundingClientRect();
+                const newHeight = containerRect.bottom - e.clientY - 10;
+                
+                if (newHeight >= 60 && newHeight <= 600) {
+                    consoleEl.style.height = `${newHeight}px`;
+                    localStorage.setItem('arena_console_height', newHeight);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = 'default';
+                    document.body.style.userSelect = 'auto';
+                }
+            });
+            
+            const savedConsoleHeight = localStorage.getItem('arena_console_height');
+            if (savedConsoleHeight) consoleEl.style.height = `${savedConsoleHeight}px`;
         });
 
         let availableModels = [];
@@ -788,7 +871,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             // Sincroniza com o servidor imediatamente
             const timeSeconds = (parseInt(val) || 2) * 60;
             await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
-            log(`Tempo de jogo sincronizado: ${val}min`);
+            log(`Tempo de jogo sincronizado: ${val}min`, 'log-system');
         }
 
         function saveAiInterval() {
@@ -803,8 +886,10 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
             const now = Date.now();
             apiRequestTimestamps = apiRequestTimestamps.filter(t => now - t < 60000);
-            document.getElementById('api-rpm').innerText = apiRequestTimestamps.length;
-            document.getElementById('api-total').innerText = apiRequestCount;
+            const rpm = apiRequestTimestamps.length;
+            document.getElementById('api-rpm').innerText = rpm;
+            document.getElementById('p1-total-req').innerText = p1RequestCount;
+            document.getElementById('p2-total-req').innerText = p2RequestCount;
         }
 
         function updateTokenDisplay(playerNum, usage) {
@@ -838,7 +923,50 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
                 // Grand Total
                 document.getElementById('grand-total-sum').innerText = grandTotalTokens;
+            } else {
+                // If usage is null, just refresh UI from state (useful for resets)
+                ['p1', 'p2'].forEach(prefix => {
+                    const player = prefix === 'p1' ? p1Tokens : p2Tokens;
+                    document.getElementById(`${prefix}-curr-p`).innerText = player.current.prompt;
+                    document.getElementById(`${prefix}-curr-r`).innerText = player.current.completion;
+                    document.getElementById(`${prefix}-curr-t`).innerText = player.current.total;
+                    document.getElementById(`${prefix}-total-p`).innerText = player.total.prompt;
+                    document.getElementById(`${prefix}-total-r`).innerText = player.total.completion;
+                    document.getElementById(`${prefix}-total-t`).innerText = player.total.total;
+                });
+                document.getElementById('grand-total-sum').innerText = grandTotalTokens;
             }
+        }
+
+        function resetTokenCounts() {
+            p1Tokens = { 
+                current: { prompt: 0, completion: 0, total: 0 },
+                total: { prompt: 0, completion: 0, total: 0 }
+            };
+            p2Tokens = { 
+                current: { prompt: 0, completion: 0, total: 0 },
+                total: { prompt: 0, completion: 0, total: 0 }
+            };
+            grandTotalTokens = 0;
+            p1RequestCount = 0;
+            p2RequestCount = 0;
+            apiRequestTimestamps = [];
+            
+            // Update UI
+            updateTokenDisplay(1, null);
+            updateRpmDisplay();
+            log("Contadores de tokens e requisições resetados.", 'log-system');
+        }
+
+        async function restartGame() {
+            log("Reiniciando partida...", 'log-system');
+            await sendToGame(1, { type: 'reset' });
+            resetTokenCounts();
+        }
+
+        async function endGame() {
+            log("Encerrando partida...", 'log-system');
+            await sendToGame(1, { type: 'endGame' });
         }
 
         function updateCoordsVisibility() {
@@ -852,6 +980,12 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
         function updateParallelSetting() {
             const isChecked = document.getElementById('toggle-parallel').checked;
             localStorage.setItem('arena_parallel_mode', isChecked);
+            document.getElementById('independent-box').style.display = isChecked ? 'flex' : 'none';
+        }
+
+        function updateIndependentSetting() {
+            const isChecked = document.getElementById('toggle-independent').checked;
+            localStorage.setItem('arena_independent_mode', isChecked);
         }
 
         function saveActivity(playerNum) {
@@ -902,7 +1036,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             }
         }
 
-        async function log(msg, type = '') {
+        async function log(msg, type = 'log-system') {
             const consoleEl = document.getElementById('log-console');
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
@@ -916,7 +1050,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const key = document.getElementById('api-key').value || ""; // Default empty
             
             try {
-                log("Sincronizando modelos...");
+                log("Sincronizando modelos...", 'log-system');
                 const response = await fetch(`${host}/models`, {
                     headers: { 'Authorization': `Bearer ${key}` }
                 });
@@ -941,7 +1075,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
                 isSynced = true; // Sincronia confirmada!
                 localStorage.setItem('arena_is_synced', 'true');
-                log("Modelos sincronizados!");
+                log("Modelos sincronizados!", 'log-system');
                 saveGameTimeConfig(); // Sincroniza o tempo junto com os modelos
                 return true;
             } catch (err) {
@@ -1119,8 +1253,12 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             const distBall = Math.sqrt(Math.pow(meData.x - lastState.ball.x, 2) + Math.pow(meData.z - lastState.ball.z, 2));
             const hasBall = distBall < 15;
 
+            const p1Name = document.getElementById('p1-name').value || (lastState?.teamNames?.A || 'Brasil');
+            const p2Name = document.getElementById('p2-name').value || (lastState?.teamNames?.B || 'Argentina');
+            const myName = playerNum === 1 ? p1Name : p2Name;
+
             const simplifiedState = {
-                voca: "Você é o Jogador " + (playerNum === 1 ? "1 (Brasil)" : "2 (Argentina)"),
+                voca: "Você é o Jogador " + (playerNum === 1 ? `1 (${p1Name})` : `2 (${p2Name})`),
                 campo: field,
                 posse_de_bola: hasBall,
                 minha_posicao: myPos.x + "," + myPos.y + " (Xadrez: " + myPos.chess + ")",
@@ -1146,8 +1284,9 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 // Store for debugging
                 lastPrompts[playerNum] = payload;
 
-                log(`P${playerNum} pensando...`, `log-player${playerNum}`);
-                apiRequestCount++;
+                log(`${myName} pensando...`, `log-player${playerNum}`);
+                if (playerNum === 1) p1RequestCount++;
+                else p2RequestCount++;
                 apiRequestTimestamps.push(Date.now());
                 updateRpmDisplay();
                 const response = await fetch(`${host}/chat/completions`, {
@@ -1190,7 +1329,10 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 
                 return aiResponse;
             } catch (err) {
-                log(`P${playerNum} Error: ${err.message}`, 'log-error');
+                const myName = playerNum === 1 ? 
+                    (document.getElementById('p1-name').value || 'Brasil') : 
+                    (document.getElementById('p2-name').value || 'Argentina');
+                log(`${myName} Error: ${err.message}`, 'log-error');
                 return null;
             }
         }
@@ -1271,7 +1413,11 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 actionDesc += ` (dx:${action.dx || 0}, dz:${action.dz || 0})`;
             }
 
-            log(`${playerNum === 1 ? 'Brasil' : 'Argentina'} executa: ${actionDesc}`, `log-player${playerNum}`);
+            const p1Name = document.getElementById('p1-name').value || (lastState?.teamNames?.A || 'Brasil');
+            const p2Name = document.getElementById('p2-name').value || (lastState?.teamNames?.B || 'Argentina');
+            const name = playerNum === 1 ? p1Name : p2Name;
+
+            log(`${name} executa: ${actionDesc}`, `log-player${playerNum}`);
             await sendToGame(playerNum, action);
         };
 
@@ -1331,15 +1477,54 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
                 return;
             }
 
-            // 1. Pensa sobre o estado ATUAL (que pode já ser o futuro, pois atualizamos logo após o sendAction anterior)
+            const isParallel = document.getElementById('toggle-parallel').checked;
+            const isIndependent = document.getElementById('toggle-independent').checked;
+
+            if (isParallel && isIndependent) {
+                // MODO INDEPENDENTE: Cada um no seu tempo, o rápido não espera o lerdo
+                const userDelay = parseInt(document.getElementById('ai-interval-config').value) || 200;
+                const gameSpeed = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
+                const engineCooldownMs = 200 / gameSpeed;
+                const targetInterval = Math.max(userDelay, engineCooldownMs);
+
+                const p1Active = document.getElementById('p1-active').checked;
+                const p2Active = document.getElementById('p2-active').checked;
+
+                // Fluxo P1
+                if (p1Active && !isP1Thinking && (Date.now() - lastP1SendTime >= targetInterval)) {
+                    isP1Thinking = true;
+                    // Dispara request sem dar await aqui (para não segurar o loop)
+                    askAI(1).then(async action => {
+                        if (action && isRunning) await processAction(1, action);
+                        lastP1SendTime = Date.now();
+                        isP1Thinking = false;
+                    });
+                }
+
+                // Fluxo P2
+                if (p2Active && !isP2Thinking && (Date.now() - lastP2SendTime >= targetInterval)) {
+                    isP2Thinking = true;
+                    askAI(2).then(async action => {
+                        if (action && isRunning) await processAction(2, action);
+                        lastP2SendTime = Date.now();
+                        isP2Thinking = false;
+                    });
+                }
+
+                // Em modo independente, o loop principal serve apenas como coordenador
+                await fetchGameState();
+                loopTimer = setTimeout(continuousLoop, 50); // Tick rápido para conferir prontidão
+                return;
+            }
+
+            // MODO SINCRONIZADO (Comportamento Original)
             const { p1Action, p2Action } = await doAITurn();
 
             if (!isRunning) return;
 
-            // 2. Sincroniza o tempo de envio com o Delay da IA E com a Velocidade do Jogo
             const userDelay = parseInt(document.getElementById('ai-interval-config').value) || 200;
             const gameSpeed = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
-            const engineCooldownMs = 200 / gameSpeed; // Tempo exato que a engine leva para liberar o próximo passo visualmente
+            const engineCooldownMs = 200 / gameSpeed;
             
             const targetInterval = Math.max(userDelay, engineCooldownMs);
             const timeSinceLastSend = Date.now() - lastActionSendTime;
@@ -1351,18 +1536,12 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
 
             if (!isRunning) return;
 
-            // 3. Envia os comandos (Isso fará com que o personagem comece a se mover na UI de forma síncrona com os comandos do servidor)
-            const isParallel = document.getElementById('toggle-parallel').checked;
             if (p1Action) await processAction(1, p1Action);
             if (p2Action && !isParallel) await new Promise(r => setTimeout(r, 300));
             if (p2Action) await processAction(2, p2Action);
 
             lastActionSendTime = Date.now();
-
-            // 4. Captura Imediatamente a Posicao Futura (os dados chegam como "novo quadrado" mesmo enquanto rola animacao)
             await fetchGameState();
-
-            // 5. Continua o ciclo preenchendo o proximo request durante a animacao que ta rolando
             loopTimer = setTimeout(continuousLoop, 0);
         }
 
@@ -1375,9 +1554,14 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             document.getElementById('game-status-badge').innerText = '';
 
             lastActionSendTime = 0;
+            lastP1SendTime = 0;
+            lastP2SendTime = 0;
+            isP1Thinking = false;
+            isP2Thinking = false;
+            resetTokenCounts();
             await fetchGameState();
 
-            log("Pipeline de Jogo em Tempo Real (Contínuo) ativado!");
+            log("Pipeline de Jogo em Tempo Real (Contínuo) ativado!", 'log-system');
             continuousLoop();
         }
 
@@ -1386,7 +1570,7 @@ IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
             clearTimeout(loopTimer);
             document.getElementById('btn-play').style.display = 'block';
             document.getElementById('btn-stop').style.display = 'none';
-            log("Loop Contínuo parado.");
+            log("Loop Contínuo parado.", 'log-system');
         }
 
         function openModal(title, body, type = '') {

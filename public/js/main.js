@@ -38,14 +38,25 @@ function init() {
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.enablePan = false; 
+    controls.enablePan = true; // Habilitado para mover o campo
     controls.enableZoom = false; // Desabilitado para usarmos zoom customizado linear
+    
+    // Configura botões do mouse: Esquerdo: ROTATE (Orbit), Direito: PAN (Mover campo)
+    controls.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN
+    };
+
     controls.minDistance = 50;
     controls.maxDistance = 600;
     controls.maxPolarAngle = Math.PI / 2.1;
     controls.minPolarAngle = Math.PI / 8;
-    controls.rotateSpeed = 0.4;
+    controls.rotateSpeed = 0.5;
     controls.dampingFactor = 0.05;
+
+    // Previne o menu de contexto no clique direito para não atrapalhar o Orbit
+    renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
     // Zoom Customizado Linear
     renderer.domElement.addEventListener('wheel', (event) => {

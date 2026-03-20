@@ -39,7 +39,10 @@ app.post('/action', (req, res) => {
 
     const targetId = action.playerId;
     if (targetId) {
-        game.handleAction(targetId, action);
+        // Se houver uma propriedade 'action' aninhada (como no AI Arena), extrai ela.
+        // Caso contrário, usa o objeto inteiro (como no Socket).
+        const finalAction = action.action || action;
+        game.handleAction(targetId, finalAction);
         res.json({ success: true, state: game.getState() });
     } else {
         res.status(400).json({ success: false, error: "playerId is required" });

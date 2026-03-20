@@ -631,7 +631,13 @@ export class GameEngine {
             return; // Config processada, encerra execução.
         }
 
-        if (action.type === 'stopGame') {
+        if (action.type === 'reset') {
+            this.reset();
+            this.isGameActive = true;
+            return;
+        }
+
+        if (action.type === 'stopGame' || action.type === 'endGame') {
             this.isGameActive = false;
             return;
         }
