@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuteboliA - AI 1v1 Arena</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050a14;
+            --card: rgba(20, 30, 50, 0.7);
+            --primary: #3b82f6;
+            --secondary: #10b981;
+            --brasil: #fde100;
+            --argentina: #75b2dd;
+            --text: #f8fafc;
+            --accent: #6366f1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 40%);
+            color: var(--text);
+            height: 100vh;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 340px 1fr 340px;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        h1, h2, h3 { font-family: 'Outfit', sans-serif; }
+
+        /* Glassmorphism Panel */
+        .panel {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover { border-color: rgba(255, 255, 255, 0.2); }
+
+        /* Configuration Styles */
+        .model-select-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Combo Box Styles */
+        .combo-container {
+            position: relative;
+            width: 100%;
+        }
+        .combo-input {
+            width: 100%;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 0.35rem 0.5rem;
+            outline: none;
+            box-sizing: border-box;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        .p1-combo .combo-input { border: 1px solid #4ade80; }
+        .p2-combo .combo-input { border: 1px solid #60a5fa; }
+        
+        .combo-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-top: none;
+            z-index: 1000;
+            display: none;
+            border-radius: 0 0 4px 4px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-align: left;
+        }
+        .combo-dropdown.show { display: block; }
+        
+        .combo-option {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: monospace;
+        }
+        .combo-option:hover { background: rgba(255,255,255,0.1); }
+        .combo-option.highlight { background: rgba(56, 189, 248, 0.4); color: white; font-weight: bold; }
+
+        .btn {-bottom: 0.5rem;
+        }
+
+        label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        textarea { resize: none; font-family: 'Inter', sans-serif; line-height: 1.5; }
+
+        /* Center Arena */
+        .arena-main {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .game-state-card {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 32px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .pitch-svg {
+            width: 100%;
+            max-width: 380px;
+            height: auto;
+            max-height: 100%;
+            opacity: 0.5;
+        }
+
+        .stats-overlay {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: 900; color: white; }
+        .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+        }
+
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.2); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-step { background: var(--accent); }
+        .btn-play { background: var(--secondary); }
+        .btn-stop { background: #ef4444; }
+
+        .controls-bar {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0,0,0,0.6);
+            border-radius: 12px;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .controls-bar .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+        }
+
+        /* Log / Console */
+        .console {
+            min-height: 80px;
+            height: 140px;
+            flex-shrink: 0;
+            background: #000;
+            border-radius: 12px;
+            padding: 0.75rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            overflow-y: auto;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .resizer {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            cursor: ns-resize;
+            border-radius: 4px;
+            transition: background 0.2s;
+            margin: 2px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .resizer:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .resizer::after {
+            content: "";
+            width: 40px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 1px;
+        }
+
+        .log-entry { margin-bottom: 0.5rem; border-left: 2px solid #333; padding-left: 0.5rem; }
+        .log-time { color: #666; }
+        .log-player1 { border-color: var(--brasil); color: var(--brasil); }
+        .log-player2 { border-color: var(--argentina); color: var(--argentina); }
+        .log-system { border-color: var(--accent); color: var(--accent); }
+        .log-error { border-color: #ef4444; color: #ef4444; }
+
+        /* Player Colors Headers */
+        .player1-header { color: var(--brasil); }
+        .player2-header { color: var(--argentina); }
+
+
+        #goal-notification {
+            position: absolute;
+            font-size: 100px;
+            font-weight: 900;
+            color: var(--brasil);
+            text-shadow: 0 0 40px rgba(0,0,0,1);
+            display: none;
+            z-index: 100;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+        .coord-label {
+            font-size: 8px;
+            fill: #94a3b8;
+            font-weight: 700;
+            user-select: none;
+            pointer-events: none;
+            display: none; /* Default hidden */
+        }
+        .show-coords .coord-label { display: block; }
+        /* General Modal */
+        #general-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none; /* hidden by default */
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            gap: 1.5rem;
+            margin: auto;
+        }
+
+        .modal-content.large {
+            max-width: 900px;
+            height: 80vh;
+        }
+
+        .modal-content.error {
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #modal-body {
+            flex: 1;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        #modal-body pre {
+            background: #000;
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            overflow: auto;
+            max-height: 100%;
+        }
+
+        .log-player {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+            padding: 1rem;
+            font-size: 0.8rem;
+            color: #10b981;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid rgba(16, 185, 129, 0.1);
+        }
+
+        .btn-view-prompt {
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.7rem;
+            padding: 0.4rem 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn-view-prompt:hover { background: rgba(255, 255, 255, 0.2); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Panel: Brasil Config -->
+    <div class="panel">
+        <div class="config-header">
+            <h2 class="player1-header">🇧🇷 BRASIL (P1)</h2>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 12px; margin-bottom: 0.5rem;">
+            <input type="checkbox" id="p1-active" style="width: auto;" checked onchange="saveActivity(1)">
+            <label for="p1-active" style="cursor: pointer; margin-bottom: 0; color: var(--brasil);">ATIVAR IA (BRASIL)</label>
+        </div>
+        
+        <div>
+            <label>Modelo IA</label>
+            <div class="combo-container p1-combo">
+                <input type="text" id="p1-model" class="combo-input" placeholder="Pesquisar modelo..." onchange="saveSelections()" autocomplete="off">
+                <div id="p1-dropdown" class="combo-dropdown"></div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+            <label>Nome do Jogador</label>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="p1-name" placeholder="Brasil P1" style="flex: 1;">
+                <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(1)">Set</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: -0.2rem;">
+                <input type="checkbox" id="p1-is-team" style="width: auto;" onchange="updateName(1)">
+                <label for="p1-is-team" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; text-transform: none;">Usar como Nome do Time</label>
+            </div>
+        </div>
+
+        <div>
+            <label>Prompt de Sistema</label>
+            <textarea id="p1-prompt" rows="18">Você é o craque da Seleção Brasileira!
+O campo tem X: 0-200 e Y: 0-300 (Xadrez: A-J, 1-15). Sua meta o GOL em Y=0.
+DICA TÁTICA: Com a bola, DESVIE do adversário para não ser desarmado.
+VISÃO (Ray Tracing): O servidor informa o que está na sua frente (gol, bola, adversário). Se estiver com a bola, o raio mostra se o caminho para o gol está livre.
+PULL: Se a bola passou de você ou está na direção errada, use {"type":"pull"} para trazê-la de volta.
+MOVIMENTO: Envie o quadrado alvo. Ex: {"thinking":"Driblando!","type":"move","target":"F8"}
+CHUTE (Kick): Use EXATAMENTE este formato JSON: {"type":"kick", "power": 1}.
+- Power 1: PERTO (Mais certeiro/preciso). Use para empurrar pro gol se estiver perto.
+- Power 2: MÉDIO. Use para passes ou chutes de média distância.
+- Power 3: MUITO LONGO (Forte). Use para isolar a bola ou tentar de longe.
+IMPORTANTE: NUNCA use kick() ou kick(1). Envie APENAS o JSON puro.</textarea>
+            <button class="btn btn-view-prompt" onclick="openPromptModal(1)">🔍 Ver Último Prompt (P1)</button>
+        </div>
+    </div>
+
+    <!-- Center Panel: Arena -->
+    <div class="arena-main">
+        <div class="panel" style="flex-direction: row; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
+            <div style="display: flex; gap: 2rem; flex: 1;">
+                <div style="flex: 1;">
+                    <label>Omni Route API Host</label>
+                    <input type="text" id="api-host" value="https://api.omniroute.ai/v1" placeholder="https://...">
+                </div>
+                <div style="flex: 1;">
+                    <label>API Key</label>
+                    <input type="password" id="api-key" placeholder="Sua chave secreta...">
+                </div>
+            </div>
+            <button class="btn" style="margin-left: 1rem; padding: 0.75rem 1.5rem;" onclick="refreshModels()">🔄 Sync</button>
+        </div>
+
+        <div class="panel" style="padding: 0.5rem 1rem; flex-direction: row; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
+                <input type="checkbox" id="toggle-parallel" style="width: auto;" checked onchange="updateParallelSetting()">
+                <label for="toggle-parallel" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">🔀 Paralelo</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;" id="independent-box">
+                <input type="checkbox" id="toggle-independent" style="width: auto;" onchange="updateIndependentSetting()">
+                <label for="toggle-independent" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">🚀 Independente</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
+                <input type="checkbox" id="toggle-coords" style="width: auto;" onchange="updateCoordsVisibility()">
+                <label for="toggle-coords" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem;">Coords</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; border-right: 1px solid rgba(255,255,255,0.1); padding-right: 0.75rem;">
+                <input type="checkbox" id="toggle-magnetic" style="width: auto;" checked onchange="updateMagneticBall()">
+                <label for="toggle-magnetic" style="cursor: pointer; margin-bottom: 0; color: #ffeb3b; font-size: 0.65rem;">🧲 Magnética</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <label for="game-time-config" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; white-space: nowrap;">⏱ Tempo (min)</label>
+                <input type="number" id="game-time-config" value="2" min="1" max="10" step="1" style="width: 50px; padding: 0.3rem 0.5rem; font-size: 0.75rem; text-align: center;" onchange="saveGameTimeConfig()">
+            </div>
+        </div>
+
+        <div class="game-state-card" id="arena-visual">
+            <div id="goal-notification">GOL!</div>
+            <div class="stats-overlay">
+                <div class="stat-item">
+                    <div class="stat-value" id="score-a" style="color: var(--brasil); font-size: 1.5rem;">0</div>
+                    <div class="stat-label" id="team-a-label">Brasil</div>
+                </div>
+                <div class="stat-item" style="display: flex; align-items: center; justify-content: center; font-size: 18px; opacity: 0.5; padding-top: 5px;">X</div>
+                <div class="stat-item">
+                    <div class="stat-value" id="score-b" style="color: var(--argentina); font-size: 1.5rem;">0</div>
+                    <div class="stat-label" id="team-b-label">Argentina</div>
+                </div>
+                <div class="stat-item" style="margin-left: 1.5rem; display: flex; flex-direction: column; align-items: center;">
+                    <div id="clock-wrapper" style="width: 56px; height: 56px; border-radius: 50%; background-color: rgba(0,0,0,0.6); border: 3px solid #fff; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.5);">
+                        <div id="clock-fill" style="width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(#10b981 100%, transparent 0); transition: background 0.5s linear;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                            <div class="stat-value" id="game-time" style="font-size: 0.8rem; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.9);">02:00</div>
+                        </div>
+                    </div>
+                    <div id="half-label" style="font-size: 0.65rem; margin-top: 4px; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 10px; color: #fff;">1º T</div>
+                </div>
+            </div>
+            <div style="position: absolute; top: 1rem; right: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(0,0,0,0.8); padding: 1rem; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); font-family: 'Inter', monospace; z-index: 10; box-shadow: 0 8px 32px rgba(0,0,0,0.6); min-width: 260px; backdrop-filter: blur(4px);">
+                <!-- Row 1: Requests & RPM -->
+                <div style="display: flex; justify-content: space-between; gap: 1.5rem; border-bottom: 2px solid rgba(255,255,255,0.2); padding-bottom: 0.4rem; margin-bottom: 0.4rem;">
+                    <div style="display: flex; gap: 0.6rem; align-items: center;">
+                        <span style="font-size: 0.85rem; color: #94a3b8; font-weight: bold;">📡 REQ:</span>
+                        <span id="api-total" style="font-size: 1.05rem; color: #a78bfa; font-weight: 900;">0</span>
+                    </div>
+                    <div style="display: flex; gap: 0.6rem; align-items: center;">
+                        <span style="font-size: 0.85rem; color: #94a3b8; font-weight: bold;">⚡ RPM:</span>
+                        <span id="api-rpm" style="font-size: 1.05rem; color: #f472b6; font-weight: 900;">0</span>
+                    </div>
+                </div>
+
+                <!-- Row 2: P1 Current -->
+                <div style="display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem;">
+                    <span style="color: var(--brasil); min-width: 80px; font-weight: 800;">P1 ATUAL:</span>
+                    <span style="color: #fbbf24;">P:<span id="p1-curr-p">0</span></span>
+                    <span style="color: #34d399;">R:<span id="p1-curr-r">0</span></span>
+                    <span style="color: #60a5fa; font-weight: 900;">T:<span id="p1-curr-t">0</span></span>
+                </div>
+
+                <!-- Row 3: P1 Total -->
+                <div style="display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 0.3rem;">
+                    <span style="color: var(--brasil); min-width: 80px; font-weight: 800;">P1 TOTAL:</span>
+                    <span style="color: #fbbf24; opacity: 1;">P:<span id="p1-total-p">0</span></span>
+                    <span style="color: #34d399; opacity: 1;">R:<span id="p1-total-r">0</span></span>
+                    <span style="color: #60a5fa; font-weight: 900;">T:<span id="p1-total-t">0</span></span>
+                </div>
+
+                <!-- Row 4: P2 Current -->
+                <div style="display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem;">
+                    <span style="color: var(--argentina); min-width: 80px; font-weight: 800;">P2 ATUAL:</span>
+                    <span style="color: #fbbf24;">P:<span id="p2-curr-p">0</span></span>
+                    <span style="color: #34d399;">R:<span id="p2-curr-r">0</span></span>
+                    <span style="color: #60a5fa; font-weight: 900;">T:<span id="p2-curr-t">0</span></span>
+                </div>
+
+                <!-- Row 5: P2 Total -->
+                <div style="display: flex; gap: 0.8rem; align-items: center; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 0.3rem;">
+                    <span style="color: var(--argentina); min-width: 80px; font-weight: 800;">P2 TOTAL:</span>
+                    <span style="color: #fbbf24; opacity: 1;">P:<span id="p2-total-p">0</span></span>
+                    <span style="color: #34d399; opacity: 1;">R:<span id="p2-total-r">0</span></span>
+                    <span style="color: #60a5fa; font-weight: 900;">T:<span id="p2-total-t">0</span></span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding-top: 0.4rem;">
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📡 Requests (P1):</span>
+                        <span id="p1-total-req" class="stat-value" style="font-size: 1.05rem; color: #a78bfa; font-weight: 900;">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📡 Requests (P2):</span>
+                        <span id="p2-total-req" class="stat-value" style="font-size: 1.05rem; color: #a78bfa; font-weight: 900;">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label" style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;">📈 Soma Total Geral:</span>
+                        <span id="grand-total-sum" class="stat-value" style="font-size: 1.4rem; color: #f87171; font-weight: 900; text-shadow: 0 0 15px rgba(248,113,113,0.5);">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <svg class="pitch-svg" viewBox="0 0 200 300">
+                <rect x="0" y="0" width="200" height="300" fill="#1e3a8a33" stroke="white" stroke-width="2"/>
+                <line x1="0" y1="150" x2="200" y2="150" stroke="white" stroke-width="1"/>
+                <circle cx="100" cy="150" r="30" fill="none" stroke="white" stroke-width="1"/>
+                <rect x="70" y="0" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
+                <rect x="70" y="280" width="60" height="20" fill="none" stroke="white" stroke-width="1"/>
+                <!-- Flag Brasil (Y=300 / Defesa) -->
+                <g transform="translate(40, 260)">
+                    <rect width="20" height="15" fill="#009b3a" stroke="white" stroke-width="1"/>
+                    <circle cx="10" cy="7.5" r="4" fill="#002776"/>
+                </g>
+                <!-- Flag Argentina (Y=0 / Defesa) -->
+                <g transform="translate(140, 25)">
+                    <rect width="20" height="15" fill="#75b2dd" stroke="white" stroke-width="1"/>
+                    <rect y="5" width="20" height="5" fill="white"/>
+                </g>
+
+                <!-- Chess Coord Labels -->
+                <g id="coord-labels-x"></g>
+                <g id="coord-labels-y"></g>
+
+                <!-- Players & Ball added by JS -->
+                <g id="dynamic-elements"></g>
+            </svg>
+        </div>
+
+        <div class="controls-bar">
+            <button class="btn" style="background: rgba(255,255,255,0.1); margin-right: 0.5rem;" onclick="restartGame()">🔄 Reset</button>
+            <button class="btn" style="background: rgba(239, 68, 68, 0.2); margin-right: 0.5rem; color: #f87171;" onclick="endGame()">🏁 Encerrar Partida</button>
+            <div style="display: flex; align-items: center; gap: 0.4rem; background: rgba(0,0,0,0.5); padding: 0.2rem 0.5rem; border-radius: 8px;">
+                <label for="ai-interval-config" style="font-size: 0.65rem; color: #94a3b8; white-space: nowrap; margin-bottom: 0;">⏳ Delay IA (ms)</label>
+                <input type="number" id="ai-interval-config" value="200" min="50" max="5000" step="50" style="width: 55px; padding: 0.2rem; font-size: 0.7rem; text-align: center; color: white; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;" onchange="saveAiInterval()">
+            </div>
+            <button class="btn btn-step" onclick="takeStep()">⚡ Turno</button>
+            <button id="btn-play" class="btn btn-play" onclick="startLoop()">▶ Arena Loop</button>
+            <button id="btn-stop" class="btn btn-stop" style="display: none;" onclick="stopLoop()">⏹ Parar</button>
+            <span id="game-status-badge" style="font-size: 0.65rem; color: #94a3b8; margin-left: 0.5rem;"></span>
+        </div>
+
+        <div id="console-resizer" class="resizer"></div>
+
+        <div id="log-console" class="console">
+            <div class="log-entry">Arena iniciada. Aguardando configuração de API...</div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Argentina Config -->
+    <div class="panel">
+        <div class="config-header">
+            <h2 class="player2-header">🇦🇷 ARGENTINA (P2)</h2>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 12px; margin-bottom: 0.5rem;">
+            <input type="checkbox" id="p2-active" style="width: auto;" checked onchange="saveActivity(2)">
+            <label for="p2-active" style="cursor: pointer; margin-bottom: 0; color: var(--argentina);">ATIVAR IA (ARGENTINA)</label>
+        </div>
+
+        <div>
+            <label>Modelo IA</label>
+            <div class="combo-container p2-combo">
+                <input type="text" id="p2-model" class="combo-input" placeholder="Pesquisar modelo..." onchange="saveSelections()" autocomplete="off">
+                <div id="p2-dropdown" class="combo-dropdown"></div>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; flex-direction: column;">
+            <label>Nome do Jogador</label>
+            <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="p2-name" placeholder="Argentina P2" style="flex: 1;">
+                <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.75rem;" onclick="updateName(2)">Set</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: -0.2rem;">
+                <input type="checkbox" id="p2-is-team" style="width: auto;" onchange="updateName(2)">
+                <label for="p2-is-team" style="cursor: pointer; margin-bottom: 0; font-size: 0.65rem; text-transform: none;">Usar como Nome do Time</label>
+            </div>
+        </div>
+
+        <div>
+            <label>Prompt de Sistema</label>
+            <textarea id="p2-prompt" rows="18">¡Sos el 10 de la Selección Argentina!
+El campo es de X: 0-200 y Y: 0-300 (Ajedrez: A-J, 1-15). Tu meta o ARCO em Y=300.
+TÁCTICA: Con la pelota, GAMBETEÁ (evitá) al rival para que no te la saque.
+VISIÓN (Ray Tracing): El servidor te dice qué hay adelante (arco, pelota, rival). Si tenés la pelota, el rayo te dice se el camino al arco está libre.
+PULL: Si la pelota te pasó o está mal ubicada, usá {"type":"pull"} para acomodarla.
+MOVIMIENTO: Enviá el cuadrado objetivo. Ex: {"thinking":"¡Gambeta!","type":"move","target":"E12"}
+REMATE (Kick): Usá EXACTAMENTE este formato JSON: {"type":"kick", "power": 1}.
+- Power 1: CERCA (Más certero/preciso). Usalo para empujar al arco si estás cerca.
+- Power 2: MEDIO. Usalo para pases o remates de media distancia.
+- Power 3: MUY LARGO (Fuerte). Usalo para despejar o intentar desde lejos.
+IMPORTANTE: NUNCA uses kick() o kick(1). Enviá SOLO el JSON puro.</textarea>
+            <button class="btn btn-view-prompt" onclick="openPromptModal(2)">🔍 Ver Último Prompt (P2)</button>
+        </div>
+    </div>
+
+    <!-- Modal for Prompt Viewing -->
+    <div id="general-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Título do Modal</h2>
+                <button class="btn btn-stop" style="padding: 0.5rem 1rem;" onclick="closeModal()">X</button>
+            </div>
+            <div id="modal-body">Conteúdo do modal...</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; text-align: center;">Pressione ESC ou clique em X para fechar</div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let lastState = null;
+        let lastPrompts = { 1: null, 2: null };
+        let apiRequestTimestamps = [];
+        let p1RequestCount = 0;
+        let p2RequestCount = 0;
+        let p1Tokens = { 
+            current: { prompt: 0, completion: 0, total: 0 },
+            total: { prompt: 0, completion: 0, total: 0 }
+        };
+        let p2Tokens = { 
+            current: { prompt: 0, completion: 0, total: 0 },
+            total: { prompt: 0, completion: 0, total: 0 }
+        };
+        let grandTotalTokens = 0;
+        let isSynced = false; // Flag de controle de sincronização
+        let isP1Thinking = false;
+        let isP2Thinking = false;
+        let lastP1SendTime = 0;
+        let lastP2SendTime = 0;
+
+
+        // Configuration Persistence
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedHost = localStorage.getItem('arena_api_host');
+            if (savedHost) document.getElementById('api-host').value = savedHost;
+            
+            const savedCoords = localStorage.getItem('arena_show_coords') === 'true';
+            document.getElementById('toggle-coords').checked = savedCoords;
+            if (savedCoords) document.getElementById('arena-visual').classList.add('show-coords');
+
+            document.getElementById('api-host').addEventListener('change', (e) => {
+                localStorage.setItem('arena_api_host', e.target.value);
+                isSynced = false; // Reset de sincronia ao mudar host
+                localStorage.setItem('arena_is_synced', 'false');
+            });
+
+            document.getElementById('api-key').addEventListener('change', (e) => {
+                isSynced = false; // Reset de sincronia ao mudar key
+                localStorage.setItem('arena_is_synced', 'false');
+            });
+
+            // Activity Persistence
+            const p1Active = localStorage.getItem('arena_p1_active') !== 'false'; 
+            const p2Active = localStorage.getItem('arena_p2_active') !== 'false';
+            document.getElementById('p1-active').checked = p1Active;
+            document.getElementById('p2-active').checked = p2Active;
+
+            const parallelActive = localStorage.getItem('arena_parallel_mode') !== 'false'; 
+            document.getElementById('toggle-parallel').checked = parallelActive;
+
+            const independentActive = localStorage.getItem('arena_independent_mode') === 'true'; 
+            document.getElementById('toggle-independent').checked = independentActive;
+            document.getElementById('independent-box').style.display = parallelActive ? 'flex' : 'none';
+
+            // Name Persistence
+            const p1Name = localStorage.getItem('arena_p1_name');
+            const p2Name = localStorage.getItem('arena_p2_name');
+            if (p1Name) document.getElementById('p1-name').value = p1Name;
+            if (p2Name) document.getElementById('p2-name').value = p2Name;
+
+            const p1IsTeam = localStorage.getItem('arena_p1_is_team') === 'true';
+            document.getElementById('p1-is-team').checked = p1IsTeam;
+            const p2IsTeam = localStorage.getItem('arena_p2_is_team') === 'true';
+            document.getElementById('p2-is-team').checked = p2IsTeam;
+
+            // Alerta inicial de sincronia
+            setTimeout(() => {
+                if (p1Name) updateName(1);
+                if (p2Name) updateName(2);
+            }, 1000);
+
+
+            const magActive = localStorage.getItem('arena_magnetic_ball') !== 'false';
+            document.getElementById('toggle-magnetic').checked = magActive;
+            updateMagneticBall(); // Sincroniza inicial
+
+            // Game time config persistence
+            const savedTime = localStorage.getItem('arena_game_time_minutes');
+            if (savedTime) {
+                document.getElementById('game-time-config').value = savedTime;
+                // Sincroniza logo de cara se possível
+                saveGameTimeConfig();
+            }
+
+            const savedAiInterval = localStorage.getItem('arena_ai_interval');
+            if (savedAiInterval) document.getElementById('ai-interval-config').value = savedAiInterval;
+
+            initCoordLabels();
+            fetchGameState();
+
+            // RPM updater every 2s
+            setInterval(updateRpmDisplay, 2000);
+
+            // Auto-sync se já foi sincronizado com sucesso antes
+            // Initial sync if params are intact
+            if (savedHost) {
+                setTimeout(refreshModels, 500); // Wait for potential UI updates
+            }
+
+            setupComboBox('p1');
+            setupComboBox('p2');
+
+            // Console Resizer Logic
+            const resizer = document.getElementById('console-resizer');
+            const consoleEl = document.getElementById('log-console');
+            let isResizing = false;
+
+            resizer.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const container = document.querySelector('.arena-main');
+                const containerRect = container.getBoundingClientRect();
+                const newHeight = containerRect.bottom - e.clientY - 10;
+                
+                if (newHeight >= 60 && newHeight <= 600) {
+                    consoleEl.style.height = `${newHeight}px`;
+                    localStorage.setItem('arena_console_height', newHeight);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    document.body.style.cursor = 'default';
+                    document.body.style.userSelect = 'auto';
+                }
+            });
+            
+            const savedConsoleHeight = localStorage.getItem('arena_console_height');
+            if (savedConsoleHeight) consoleEl.style.height = `${savedConsoleHeight}px`;
+        });
+
+        let availableModels = [];
+
+        function setupComboBox(player) {
+            const input = document.getElementById(`${player}-model`);
+            const dropdown = document.getElementById(`${player}-dropdown`);
+
+            input.addEventListener('focus', () => {
+                dropdown.classList.add('show');
+                highlightMatch(player, input.value);
+            });
+
+            // Close exactly when clicking outside
+            document.addEventListener('mousedown', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+
+            input.addEventListener('input', (e) => {
+                dropdown.classList.add('show');
+                highlightMatch(player, e.target.value);
+            });
+        }
+
+        function highlightMatch(player, text) {
+            const dropdown = document.getElementById(`${player}-dropdown`);
+            const options = dropdown.getElementsByClassName('combo-option');
+            text = text.trim().toLowerCase();
+
+            for (let opt of options) {
+                opt.classList.remove('highlight');
+            }
+
+            if (!text) return;
+
+            for (let opt of options) {
+                if (opt.textContent.toLowerCase().includes(text)) {
+                    opt.classList.add('highlight');
+                    opt.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    break;
+                }
+            }
+        }
+
+        function renderDropdown(player) {
+            const dropdown = document.getElementById(`${player}-dropdown`);
+            dropdown.innerHTML = '';
+            availableModels.forEach(modelId => {
+                const div = document.createElement('div');
+                div.className = 'combo-option';
+                div.textContent = modelId;
+                div.onclick = () => {
+                    document.getElementById(`${player}-model`).value = modelId;
+                    dropdown.classList.remove('show');
+                    saveSelections();
+                };
+                dropdown.appendChild(div);
+            });
+        }
+
+        function saveSelections() {
+            localStorage.setItem('arena_p1_model', document.getElementById('p1-model').value);
+            localStorage.setItem('arena_p2_model', document.getElementById('p2-model').value);
+        }
+
+        async function saveGameTimeConfig() {
+            const val = document.getElementById('game-time-config').value;
+            localStorage.setItem('arena_game_time_minutes', val);
+            
+            // Sincroniza com o servidor imediatamente
+            const timeSeconds = (parseInt(val) || 2) * 60;
+            await sendToGame(1, { type: 'setGameTime', seconds: timeSeconds });
+            log(`Tempo de jogo sincronizado: ${val}min`, 'log-system');
+        }
+
+        function saveAiInterval() {
+            localStorage.setItem('arena_ai_interval', document.getElementById('ai-interval-config').value);
+        }
+
+        function updateRpmDisplay() {
+            // Se o jogo acabou, não limpa os timestamps nem atualiza o display de RPM (congela o valor)
+            if (lastState && lastState.isGameActive === false && lastState.gameTime <= 0 && lastState.currentHalf === 2) {
+                return;
+            }
+
+            const now = Date.now();
+            apiRequestTimestamps = apiRequestTimestamps.filter(t => now - t < 60000);
+            const rpm = apiRequestTimestamps.length;
+            document.getElementById('api-rpm').innerText = rpm;
+            document.getElementById('p1-total-req').innerText = p1RequestCount;
+            document.getElementById('p2-total-req').innerText = p2RequestCount;
+        }
+
+        function updateTokenDisplay(playerNum, usage) {
+            if (usage) {
+                const player = playerNum === 1 ? p1Tokens : p2Tokens;
+                const prefix = playerNum === 1 ? 'p1' : 'p2';
+
+                // Current
+                player.current.prompt = usage.prompt_tokens || 0;
+                player.current.completion = usage.completion_tokens || 0;
+                player.current.total = usage.total_tokens || 0;
+
+                // Total (Cumulative for player)
+                player.total.prompt += player.current.prompt;
+                player.total.completion += player.current.completion;
+                player.total.total += player.current.total;
+
+                // Grand Total
+                grandTotalTokens += player.current.total;
+
+                // Update UI
+                // Current stats
+                document.getElementById(`${prefix}-curr-p`).innerText = player.current.prompt;
+                document.getElementById(`${prefix}-curr-r`).innerText = player.current.completion;
+                document.getElementById(`${prefix}-curr-t`).innerText = player.current.total;
+
+                // Total stats
+                document.getElementById(`${prefix}-total-p`).innerText = player.total.prompt;
+                document.getElementById(`${prefix}-total-r`).innerText = player.total.completion;
+                document.getElementById(`${prefix}-total-t`).innerText = player.total.total;
+
+                // Grand Total
+                document.getElementById('grand-total-sum').innerText = grandTotalTokens;
+            } else {
+                // If usage is null, just refresh UI from state (useful for resets)
+                ['p1', 'p2'].forEach(prefix => {
+                    const player = prefix === 'p1' ? p1Tokens : p2Tokens;
+                    document.getElementById(`${prefix}-curr-p`).innerText = player.current.prompt;
+                    document.getElementById(`${prefix}-curr-r`).innerText = player.current.completion;
+                    document.getElementById(`${prefix}-curr-t`).innerText = player.current.total;
+                    document.getElementById(`${prefix}-total-p`).innerText = player.total.prompt;
+                    document.getElementById(`${prefix}-total-r`).innerText = player.total.completion;
+                    document.getElementById(`${prefix}-total-t`).innerText = player.total.total;
+                });
+                document.getElementById('grand-total-sum').innerText = grandTotalTokens;
+            }
+        }
+
+        function resetTokenCounts() {
+            p1Tokens = { 
+                current: { prompt: 0, completion: 0, total: 0 },
+                total: { prompt: 0, completion: 0, total: 0 }
+            };
+            p2Tokens = { 
+                current: { prompt: 0, completion: 0, total: 0 },
+                total: { prompt: 0, completion: 0, total: 0 }
+            };
+            grandTotalTokens = 0;
+            p1RequestCount = 0;
+            p2RequestCount = 0;
+            apiRequestTimestamps = [];
+            
+            // Update UI
+            updateTokenDisplay(1, null);
+            updateRpmDisplay();
+            log("Contadores de tokens e requisições resetados.", 'log-system');
+        }
+
+        async function restartGame() {
+            log("Reiniciando partida...", 'log-system');
+            await sendToGame(1, { type: 'reset' });
+            resetTokenCounts();
+        }
+
+        async function endGame() {
+            log("Encerrando partida...", 'log-system');
+            await sendToGame(1, { type: 'endGame' });
+        }
+
+        function updateCoordsVisibility() {
+            const isChecked = document.getElementById('toggle-coords').checked;
+            localStorage.setItem('arena_show_coords', isChecked);
+            const visual = document.getElementById('arena-visual');
+            if (isChecked) visual.classList.add('show-coords');
+            else visual.classList.remove('show-coords');
+        }
+
+        function updateParallelSetting() {
+            const isChecked = document.getElementById('toggle-parallel').checked;
+            localStorage.setItem('arena_parallel_mode', isChecked);
+            document.getElementById('independent-box').style.display = isChecked ? 'flex' : 'none';
+        }
+
+        function updateIndependentSetting() {
+            const isChecked = document.getElementById('toggle-independent').checked;
+            localStorage.setItem('arena_independent_mode', isChecked);
+        }
+
+        function saveActivity(playerNum) {
+            const isChecked = document.getElementById(`p${playerNum}-active`).checked;
+            localStorage.setItem(`arena_p${playerNum}_active`, isChecked);
+        }
+
+        function updateMagneticBall() {
+            const isChecked = document.getElementById('toggle-magnetic').checked;
+            localStorage.setItem('arena_magnetic_ball', isChecked);
+            sendToGame(1, { type: 'toggleMagneticBall', active: isChecked });
+        }
+
+        function initCoordLabels() {
+            const gX = document.getElementById('coord-labels-x');
+            const gY = document.getElementById('coord-labels-y');
+            const letters = "ABCDEFGHIJ";
+            
+            // X labels (A-J)
+            for (let i = 0; i < 10; i++) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", (i * 20) + 10);
+                text.setAttribute("y", 10);
+                text.setAttribute("text-anchor", "middle");
+                text.className.baseVal = "coord-label";
+                text.textContent = letters[i];
+                gX.appendChild(text);
+
+                const textBottom = text.cloneNode(true);
+                textBottom.setAttribute("y", 295);
+                gX.appendChild(textBottom);
+            }
+
+            // Y labels (1-15)
+            for (let i = 0; i < 15; i++) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", 5);
+                text.setAttribute("y", (i * 20) + 12);
+                text.setAttribute("text-anchor", "start");
+                text.className.baseVal = "coord-label";
+                text.textContent = (i + 1);
+                gY.appendChild(text);
+
+                const textRight = text.cloneNode(true);
+                textRight.setAttribute("x", 195);
+                textRight.setAttribute("text-anchor", "end");
+                gY.appendChild(textRight);
+            }
+        }
+
+        async function log(msg, type = 'log-system') {
+            const consoleEl = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            consoleEl.prepend(entry);
+        }
+
+        async function refreshModels() {
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value || ""; // Default empty
+            
+            try {
+                log("Sincronizando modelos...", 'log-system');
+                const response = await fetch(`${host}/models`, {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                
+                if (data && data.data) {
+                    availableModels = data.data.map(m => m.id).sort((a, b) => a.localeCompare(b));
+                    
+                    renderDropdown('p1');
+                    renderDropdown('p2');
+
+                    // Read selections from localStorage directly without recreating DOM options
+                    const savedP1 = localStorage.getItem('arena_p1_model');
+                    const savedP2 = localStorage.getItem('arena_p2_model');
+
+                    if (savedP1 && availableModels.includes(savedP1)) document.getElementById('p1-model').value = savedP1;
+                    if (savedP2 && availableModels.includes(savedP2)) document.getElementById('p2-model').value = savedP2;
+                }
+
+                isSynced = true; // Sincronia confirmada!
+                localStorage.setItem('arena_is_synced', 'true');
+                log("Modelos sincronizados!", 'log-system');
+                saveGameTimeConfig(); // Sincroniza o tempo junto com os modelos
+                return true;
+            } catch (err) {
+                isSynced = false;
+                localStorage.setItem('arena_is_synced', 'false');
+                log(`Erro ao buscar modelos: ${err.message}`, 'log-error');
+                return false;
+            }
+        }
+
+        async function fetchGameState() {
+            try {
+                const response = await fetch('/state?roomId=1v1');
+                lastState = await response.json();
+                updateVisual(lastState);
+            } catch (err) {
+                console.error("Erro ao buscar estado:", err);
+            }
+        }
+
+        function updateVisual(state) {
+            document.getElementById('score-a').innerText = state.score.A;
+            document.getElementById('score-b').innerText = state.score.B;
+            if (state.teamNames) {
+                document.getElementById('team-a-label').innerText = state.teamNames.A;
+                document.getElementById('team-b-label').innerText = state.teamNames.B;
+            }
+            
+            const timeVal = Math.max(0, state.gameTime);
+            const mins = Math.floor(timeVal / 60).toString().padStart(2, '0');
+            const secs = Math.floor(timeVal % 60).toString().padStart(2, '0');
+
+            const clockWrap = document.getElementById('clock-wrapper');
+            const halfLabel = document.getElementById('half-label');
+            
+            if (state.mode === 'train') {
+                if (clockWrap) clockWrap.style.display = 'none';
+                if (halfLabel) halfLabel.style.display = 'none';
+            } else {
+                if (clockWrap) clockWrap.style.display = 'block';
+                if (halfLabel) halfLabel.style.display = 'block';
+                
+                document.getElementById('game-time').innerText = `${mins}:${secs}`;
+                const totalTime = state.timePerHalf || ((parseInt(document.getElementById('game-time-config').value) || 2) * 60);
+                const pct = Math.max(0, Math.min(100, (timeVal / totalTime) * 100));
+                let clockColor = '#10b981'; // green
+                if (pct <= 20) clockColor = '#ef4444'; // red
+                else if (pct <= 50) clockColor = '#eab308'; // yellow
+                document.getElementById('clock-fill').style.background = `conic-gradient(${clockColor} ${pct}%, rgba(255,255,255,0.08) ${pct}%)`;
+
+                if (state.currentHalf === 2) {
+                    halfLabel.innerText = '2º T';
+                    halfLabel.style.background = 'rgba(244,114,182,0.4)';
+                } else {
+                    halfLabel.innerText = '1º T';
+                    halfLabel.style.background = 'rgba(0,0,0,0.7)';
+                }
+            }
+
+            // Game status badge
+            const badge = document.getElementById('game-status-badge');
+            if (state.isGameActive === false && state.gameTime <= 0 && state.currentHalf === 2) {
+                badge.innerText = '🏁 FIM DE JOGO';
+                badge.style.color = '#ef4444';
+                if (isRunning) stopLoop();
+            } else {
+                badge.innerText = '';
+            }
+
+            const dynamic = document.getElementById('dynamic-elements');
+            dynamic.innerHTML = "";
+
+            // Ball
+            const ball = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            ball.setAttribute("cx", state.ball.x + 100);
+            ball.setAttribute("cy", state.ball.z + 150);
+            ball.setAttribute("r", "4");
+            ball.setAttribute("fill", "white");
+            ball.setAttribute("filter", "drop-shadow(0 0 5px #fff)");
+            dynamic.appendChild(ball);
+
+            // Players
+            state.players.forEach(p => {
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", p.x + 100);
+                circle.setAttribute("cy", p.z + 150);
+                circle.setAttribute("r", "8");
+                circle.setAttribute("fill", p.team === 'A' ? "#fde100" : "#75b2dd");
+                group.appendChild(circle);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", p.x + 100);
+                text.setAttribute("y", p.z + 150 + 4);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("font-size", "10");
+                text.setAttribute("font-weight", "bold");
+                text.setAttribute("fill", "#000");
+                text.textContent = p.id === 1 ? "P1" : "P2";
+                group.appendChild(text);
+
+                dynamic.appendChild(group);
+            });
+
+            const goalNotif = document.getElementById('goal-notification');
+            if (state.isGoal) {
+                goalNotif.style.display = 'block';
+            } else {
+                goalNotif.style.display = 'none';
+            }
+        }
+
+        function translateCoord(x, z) {
+            // Interno (-100 a 100, -150 a 150) -> AI (0 a 200, 0 a 300)
+            // No jogo Z é o comprimento, na IA chamamos de Y.
+            const ax = Math.round(x + 100);
+            const ay = Math.round(z + 150);
+            
+            // Chess notation calculation (A-J, 1-15)
+            // X is 0-200, 10 sections of 20 units
+            // Y is 0-300, 15 sections of 20 units
+            const letters = "ABCDEFGHIJ";
+            const chessX = letters[Math.min(9, Math.floor(ax / 20))];
+            const chessY = Math.min(15, Math.floor(ay / 20) + 1);
+            
+            return {
+                x: ax,
+                y: ay,
+                chess: `${chessX}${chessY}`
+            };
+        }
+
+        function chessToCoord(chess) {
+            if (!chess || chess.length < 2) return null;
+            const letters = "ABCDEFGHIJ";
+            const char = chess[0].toUpperCase();
+            const num = parseInt(chess.substring(1));
+            
+            const ax = letters.indexOf(char) * 20 + 10;
+            const ay = (num - 1) * 20 + 10;
+            
+            return { x: ax, y: ay };
+        }
+
+        async function askAI(playerNum) {
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value || ""; 
+            const model = document.getElementById(`p${playerNum}-model`).value;
+            const systemPrompt = document.getElementById(`p${playerNum}-prompt`).value;
+
+            const meData = lastState.players.find(p => playerNum === 1 ? p.id === 1 : p.id === 6);
+            const oppData = lastState.players.find(p => playerNum === 1 ? p.id === 6 : p.id === 1);
+            
+            const myPos = translateCoord(meData.x, meData.z);
+            const ballPos = translateCoord(lastState.ball.x, lastState.ball.z);
+            const oppPos = translateCoord(oppData.x, oppData.z);
+            
+            // Definições fixas do campo traduzido
+            const field = { width: 200, length: 300 };
+            // No 2º tempo os lados estão invertidos
+            const half = lastState.currentHalf || 1;
+            let myGoalY, targetGoalY;
+            if (half === 1) {
+                myGoalY = playerNum === 1 ? 300 : 0;
+                targetGoalY = playerNum === 1 ? 0 : 300;
+            } else {
+                myGoalY = playerNum === 1 ? 0 : 300;
+                targetGoalY = playerNum === 1 ? 300 : 0;
+            }
+            const myGoal = { x: 100, y: myGoalY };
+            const targetGoal = { x: 100, y: targetGoalY };
+
+            // Calculando posse de bola (distância < 15 unidades internas)
+            const distBall = Math.sqrt(Math.pow(meData.x - lastState.ball.x, 2) + Math.pow(meData.z - lastState.ball.z, 2));
+            const hasBall = distBall < 15;
+
+            const p1Name = document.getElementById('p1-name').value || (lastState?.teamNames?.A || 'Brasil');
+            const p2Name = document.getElementById('p2-name').value || (lastState?.teamNames?.B || 'Argentina');
+            const myName = playerNum === 1 ? p1Name : p2Name;
+
+            const simplifiedState = {
+                voca: "Você é o Jogador " + (playerNum === 1 ? `1 (${p1Name})` : `2 (${p2Name})`),
+                campo: field,
+                tempo_restante: Math.floor(lastState.gameTime) + "s",
+                periodo: lastState.currentHalf + "º tempo",
+                placar: lastState.score,
+                posse_de_bola: hasBall,
+                minha_posicao: myPos.x + "," + myPos.y + " (Xadrez: " + myPos.chess + ")",
+                olhando_para: { x: meData.facingX, y: meData.facingZ },
+                visao_raytraycing: meData.ray ? { detectou: meData.ray.type, distancia: meData.ray.distance } : "nada",
+                bola: ballPos.x + "," + ballPos.y + " (Xadrez: " + ballPos.chess + ")",
+                adversario: oppPos.x + "," + oppPos.y + " (Xadrez: " + oppPos.chess + ")",
+                meu_gol: myGoal,
+                gol_alvo: targetGoal
+            };
+
+            try {
+                const payload = {
+                    model: model,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: `ESTADO DO JOGO EM COORDENADAS X,Y (0-200, 0-300). TEMPO RESTANTE É CRÍTICO PARA ESTRATÉGIA.\n${JSON.stringify(simplifiedState, null, 2)}` }
+                    ],
+                    response_format: { type: "json_object" }
+                };
+
+                // Store for debugging
+                lastPrompts[playerNum] = payload;
+
+                log(`${myName} pensando...`, `log-player${playerNum}`);
+                if (playerNum === 1) p1RequestCount++;
+                else p2RequestCount++;
+                apiRequestTimestamps.push(Date.now());
+                updateRpmDisplay();
+                const response = await fetch(`${host}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${key}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                // Update tokens display
+                if (data.usage) {
+                    updateTokenDisplay(playerNum, data.usage);
+                }
+
+                let aiResponse = JSON.parse(data.choices[0].message.content);
+                
+                // Normalização: se a IA mandou "action" em vez de "type", corrigimos aqui
+                if (aiResponse.action && !aiResponse.type) {
+                    aiResponse.type = aiResponse.action;
+                }
+
+                // Lógica de Movimento por Alvo de Xadrez (Simplificado)
+                if (aiResponse.type === 'move' && aiResponse.target) {
+                    const targetPos = chessToCoord(aiResponse.target);
+                    if (targetPos) {
+                        aiResponse.dx = Math.sign(targetPos.x - myPos.x);
+                        aiResponse.dz = Math.sign(targetPos.y - myPos.y);
+                    }
+                }
+
+                // Garantia de Power para Chute
+                if (aiResponse.type === 'kick' && !aiResponse.power) {
+                    aiResponse.power = 1;
+                    log(`P${playerNum} não especificou 'power'. Usando nível 1 (curto).`, `log-player${playerNum}`);
+                }
+                
+                return aiResponse;
+            } catch (err) {
+                const myName = playerNum === 1 ? 
+                    (document.getElementById('p1-name').value || 'Brasil') : 
+                    (document.getElementById('p2-name').value || 'Argentina');
+                log(`${myName} Error: ${err.message}`, 'log-error');
+                return null;
+            }
+        }
+
+        async function sendToGame(playerId, action) {
+            await fetch('/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    roomId: '1v1',
+                    playerId: playerId,
+                    isManual: true,
+                    ...action
+                })
+            });
+        }
+
+        async function updateName(playerNum) {
+            const nameInput = document.getElementById(`p${playerNum}-name`);
+            const name = nameInput.value;
+            const isTeamName = document.getElementById(`p${playerNum}-is-team`).checked;
+            if (!name) return;
+            
+            localStorage.setItem(`arena_p${playerNum}_name`, name);
+            localStorage.setItem(`arena_p${playerNum}_is_team`, isTeamName);
+            log(`P${playerNum} alterando nome para: ${name}...`);
+            await sendToGame(playerNum, {
+                type: 'config',
+                name: name,
+                number: playerNum === 1 ? 10 : 7,
+                isTeamName: isTeamName
+            });
+        }
+
+        function validateSetup() {
+            const p1Active = document.getElementById('p1-active').checked;
+            const p2Active = document.getElementById('p2-active').checked;
+            const host = document.getElementById('api-host').value;
+            const key = document.getElementById('api-key').value;
+
+            if ((p1Active || p2Active) && !host) {
+                openModal("Configuração Incompleta", "Você precisa preencher o <b>API Host</b> antes de realizar jogadas.", "error");
+                return false;
+            }
+
+            const p1Select = document.getElementById('p1-model');
+            const p2Select = document.getElementById('p2-model');
+
+            if (!isSynced) {
+                openModal("Sincronização Necessária", "Você mudou as configurações ou ainda não carregou os modelos. Clique em <b>Sincronizar Modelos</b> antes de iniciar.", "error");
+                return false;
+            }
+
+            if (p1Active && !p1Select.value) {
+                openModal("Modelo não Selecionado", "Por favor, selecione um modelo para o <b>Brasil (P1)</b>.", "error");
+                return false;
+            }
+            if (p2Active && !p2Select.value) {
+                openModal("Modelo não Selecionado", "Por favor, selecione um modelo para a <b>Argentina (P2)</b>.", "error");
+                return false;
+            }
+
+            return true;
+        }
+
+        const processAction = async (playerNum, action) => {
+            if (!action) return;
+            if (action.thinking) {
+                log(`${playerNum === 1 ? 'Brasil' : 'Argentina'} (Pensamento): ${action.thinking}`, `log-player${playerNum}`);
+                action.text = action.thinking;
+            }
+            let actionDesc = action.type || action.action;
+            if (action.type === 'kick') {
+                actionDesc += ` (Power: ${action.power || '?'})`;
+            } else if (action.type === 'move' && action.target) {
+                actionDesc += ` (${action.target})`;
+            } else if (action.dx !== undefined || action.dz !== undefined) {
+                actionDesc += ` (dx:${action.dx || 0}, dz:${action.dz || 0})`;
+            }
+
+            const p1Name = document.getElementById('p1-name').value || (lastState?.teamNames?.A || 'Brasil');
+            const p2Name = document.getElementById('p2-name').value || (lastState?.teamNames?.B || 'Argentina');
+            const name = playerNum === 1 ? p1Name : p2Name;
+
+            log(`${name} executa: ${actionDesc}`, `log-player${playerNum}`);
+            await sendToGame(playerNum, action);
+        };
+
+        async function doAITurn() {
+            const p1IsActive = document.getElementById('p1-active').checked;
+            const p2IsActive = document.getElementById('p2-active').checked;
+            const isParallel = document.getElementById('toggle-parallel').checked;
+
+            let p1Action, p2Action;
+
+            if (isParallel) {
+                const [r1, r2] = await Promise.all([
+                    p1IsActive ? askAI(1) : Promise.resolve(null),
+                    p2IsActive ? askAI(2) : Promise.resolve(null)
+                ]);
+                p1Action = r1; p2Action = r2;
+            } else {
+                if (p1IsActive) p1Action = await askAI(1);
+                if (p2IsActive) p2Action = await askAI(2);
+            }
+
+            return { p1Action, p2Action };
+        }
+
+        async function takeStep() {
+            if (!validateSetup()) {
+                if (isRunning) stopLoop();
+                return;
+            }
+
+            await fetchGameState();
+            
+            if (!lastState || !lastState.isGameActive) {
+                log("Ação bloqueada: A partida ainda não começou no menu inicial!", "log-error");
+                return;
+            }
+
+            const { p1Action, p2Action } = await doAITurn();
+            const isParallel = document.getElementById('toggle-parallel').checked;
+
+            if (p1Action) await processAction(1, p1Action);
+            if (p2Action && !isParallel) await new Promise(r => setTimeout(r, 300));
+            if (p2Action) await processAction(2, p2Action);
+            
+            await fetchGameState();
+        }
+            
+        let loopTimer = null;
+        let lastActionSendTime = 0;
+
+        async function continuousLoop() {
+            if (!isRunning) return;
+
+            if (!lastState || !lastState.isGameActive) {
+                log("Aguardando início da partida em index.html...", "log-system");
+                loopTimer = setTimeout(continuousLoop, 2000);
+                return;
+            }
+
+            const isParallel = document.getElementById('toggle-parallel').checked;
+            const isIndependent = document.getElementById('toggle-independent').checked;
+
+            if (isParallel && isIndependent) {
+                // MODO INDEPENDENTE: Cada um no seu tempo, o rápido não espera o lerdo
+                const userDelay = parseInt(document.getElementById('ai-interval-config').value) || 200;
+                const gameSpeed = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
+                const engineCooldownMs = 200 / gameSpeed;
+                const targetInterval = Math.max(userDelay, engineCooldownMs);
+
+                const p1Active = document.getElementById('p1-active').checked;
+                const p2Active = document.getElementById('p2-active').checked;
+
+                // Fluxo P1
+                if (p1Active && !isP1Thinking && (Date.now() - lastP1SendTime >= targetInterval)) {
+                    isP1Thinking = true;
+                    // Dispara request sem dar await aqui (para não segurar o loop)
+                    askAI(1).then(async action => {
+                        if (action && isRunning) await processAction(1, action);
+                        lastP1SendTime = Date.now();
+                        isP1Thinking = false;
+                    });
+                }
+
+                // Fluxo P2
+                if (p2Active && !isP2Thinking && (Date.now() - lastP2SendTime >= targetInterval)) {
+                    isP2Thinking = true;
+                    askAI(2).then(async action => {
+                        if (action && isRunning) await processAction(2, action);
+                        lastP2SendTime = Date.now();
+                        isP2Thinking = false;
+                    });
+                }
+
+                // Em modo independente, o loop principal serve apenas como coordenador
+                await fetchGameState();
+                loopTimer = setTimeout(continuousLoop, 50); // Tick rápido para conferir prontidão
+                return;
+            }
+
+            // MODO SINCRONIZADO (Comportamento Original)
+            const { p1Action, p2Action } = await doAITurn();
+
+            if (!isRunning) return;
+
+            const userDelay = parseInt(document.getElementById('ai-interval-config').value) || 200;
+            const gameSpeed = parseFloat(localStorage.getItem('gameSpeed')) || 1.0;
+            const engineCooldownMs = 200 / gameSpeed;
+            
+            const targetInterval = Math.max(userDelay, engineCooldownMs);
+            const timeSinceLastSend = Date.now() - lastActionSendTime;
+            const sleepTime = Math.max(0, targetInterval - timeSinceLastSend);
+
+            if (sleepTime > 0) {
+                await new Promise(r => setTimeout(r, sleepTime));
+            }
+
+            if (!isRunning) return;
+
+            if (p1Action) await processAction(1, p1Action);
+            if (p2Action && !isParallel) await new Promise(r => setTimeout(r, 300));
+            if (p2Action) await processAction(2, p2Action);
+
+            lastActionSendTime = Date.now();
+            await fetchGameState();
+            loopTimer = setTimeout(continuousLoop, 0);
+        }
+
+        async function startLoop() {
+            if (!validateSetup()) return;
+
+            isRunning = true;
+            document.getElementById('btn-play').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-flex';
+            document.getElementById('game-status-badge').innerText = '';
+
+            lastActionSendTime = 0;
+            lastP1SendTime = 0;
+            lastP2SendTime = 0;
+            isP1Thinking = false;
+            isP2Thinking = false;
+            resetTokenCounts();
+            await fetchGameState();
+
+            log("Pipeline de Jogo em Tempo Real (Contínuo) ativado!", 'log-system');
+            continuousLoop();
+        }
+
+        function stopLoop() {
+            isRunning = false;
+            clearTimeout(loopTimer);
+            document.getElementById('btn-play').style.display = 'block';
+            document.getElementById('btn-stop').style.display = 'none';
+            log("Loop Contínuo parado.", 'log-system');
+        }
+
+        function openModal(title, body, type = '') {
+            const modal = document.getElementById('general-modal');
+            const content = modal.querySelector('.modal-content');
+            
+            // Limpa classes anteriores
+            content.classList.remove('large', 'error');
+            if (type) content.classList.add(type);
+
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = body;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('general-modal').style.display = 'none';
+        }
+
+        function openPromptModal(playerNum) {
+            const title = `Último Prompt - ${playerNum === 1 ? 'Brasil (P1)' : 'Argentina (P2)'}`;
+            let body = "";
+            if (lastPrompts[playerNum]) {
+                body = `<pre>${JSON.stringify(lastPrompts[playerNum], null, 2)}</pre>`;
+            } else {
+                body = "Nenhum prompt enviado ainda para este jogador. Execute um turno para capturar os dados.";
+            }
+            openModal(title, body, 'large');
+        }
+
+        // Close on ESC
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        setInterval(fetchGameState, 500);
+    </script>
+</body>
+</html>

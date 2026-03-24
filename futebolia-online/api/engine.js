@@ -1,0 +1,872 @@
+import { WorldDefinition } from './world-definition.js';
+
+export class GameEngine {
+    constructor(options = {}) {
+        this.mode = options.mode || 'play';
+        this.autoGk = options.autoGk !== false;
+        this.autoOpponent = options.autoOpponent !== false;
+        this.ballBounce = options.ballBounce !== false;
+        this.magneticBall = options.magneticBall !== false; 
+        this.gameSpeed = options.gameSpeed || 1.0;
+        this.realTimeClock = options.realTimeClock === true;
+
+        this.GRID_W = 200;
+        this.GRID_H = 300;
+        this.MARGIN = 20;
+        this.TIME_PER_HALF = 120;
+        
+        this.reset();
+    }
+
+    reset() {
+        // Record current player identities to preserve them
+        const playerIdentities = new Map();
+        if (this.players) {
+            this.players.forEach(p => {
+                playerIdentities.set(p.id, { name: p.name, number: p.number });
+            });
+        }
+
+        this.ball = {
+            x: 0,
+            z: 0,
+            y: 3,
+            isMoving: false,
+            startX: 0,
+            startZ: 0,
+            targetX: 0,
+            targetZ: 0,
+            progress: 0,
+            speed: 2.0, 
+            arcHeight: 0,
+            lastKickerId: null 
+        };
+
+        if (this.mode === 'play') {
+            this.players = [];
+            const starts = [
+                { x: 0, z: 140 }, { x: -30, z: 80 }, { x: 30, z: 80 }, { x: -50, z: 20 }, { x: 50, z: 20 },
+                { x: 0, z: -140 }, { x: -30, z: -80 }, { x: 30, z: -80 }, { x: -50, z: -20 }, { x: 50, z: -20 }
+            ];
+
+            starts.slice(0, 5).forEach((start, i) => {
+                const id = i + 1;
+                const identity = playerIdentities.get(id) || { name: `Brasil ${i === 0 ? 'GK' : id}`, number: id };
+                const player = { id, team: 'A', role: i === 0 ? 'GK' : 'FIELD', x: start.x, z: start.z, ...identity, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: -1 };
+                this.players.push(player);
+            });
+            starts.slice(5).forEach((start, i) => {
+                const id = i + 6;
+                const identity = playerIdentities.get(id) || { name: `Argentina ${i === 0 ? 'GK' : id}`, number: id };
+                const player = { id, team: 'B', role: i === 0 ? 'GK' : 'FIELD', x: start.x, z: start.z, ...identity, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: 1 };
+                this.players.push(player);
+            });
+            this.gameTime = this.TIME_PER_HALF;
+            this.currentHalf = 1;
+            this.isGameActive = false; // "play" mode still needs manual start (lobby logic)
+
+        } else if (this.mode === 'train') {
+            const id1 = 1, id6 = 6;
+            const ident1 = playerIdentities.get(id1) || { name: "Treinador", number: 10 };
+            const ident6 = playerIdentities.get(id6) || { name: "Goleiro", number: 1 };
+
+            this.players = [
+                { id: id1, team: 'A', role: 'FIELD', x: 0, z: 140, ...ident1, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: -1 },
+                { id: id6, team: 'B', role: 'GK', x: 0, z: -140, ...ident6, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: 1 }
+            ];
+            
+            this.gameTime = 9999; 
+            this.currentHalf = 1;
+            this.isGameActive = true; // Auto-activate in training
+        } else if (this.mode === '1v1') {
+            const id1 = 1, id6 = 6;
+            const ident1 = playerIdentities.get(id1) || { name: "Jogador 1", number: 10 };
+            const ident6 = playerIdentities.get(id6) || { name: "Jogador 2", number: 7 };
+
+            this.players = [
+                { id: id1, team: 'A', role: 'FIELD', x: 0, z: 100, ...ident1, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: -1 },
+                { id: id6, team: 'B', role: 'FIELD', x: 0, z: -100, ...ident6, message: "", messageTimeout: 0, cooldown: 0, facingX: 0, facingZ: 1 }
+            ];
+
+            const randomX = (Math.floor(Math.random() * 13) - 6) * 10;
+            const randomZ = (Math.floor(Math.random() * 11) - 5) * 10;
+            this.ball.x = randomX;
+            this.ball.z = randomZ;
+
+            this.gameTime = this.TIME_PER_HALF;
+            this.currentHalf = 1;
+            this.isGameActive = true; // Auto-activate in 1v1
+        }
+
+        this.score = { A: 0, B: 0 };
+        this.teamNames = { A: "Brasil", B: "Argentina" };
+        this.isGoal = false;
+        this.lastUpdate = Date.now();
+    }
+
+    update(dt) {
+        const dtReal = dt;
+        dt = dt * this.gameSpeed;
+        
+        if (this.isGameActive && !this.isGoal) {
+            // No modo treino o tempo não corre
+            if (this.mode !== 'train') {
+                this.gameTime -= (this.realTimeClock ? dtReal : dt);
+            }
+            
+            if (this.gameTime <= 0 && this.mode !== 'train') {
+                if (this.mode === '1v1' && this.currentHalf === 1) {
+                    // Fim do 1º tempo — troca de lado
+                    this.currentHalf = 2;
+                    this.gameTime = this.TIME_PER_HALF;
+                    this.swapSides();
+                } else {
+                    this.gameTime = 0;
+                    this.isGameActive = false;
+                }
+            }
+            this.updateIA(dt);
+        }
+
+        this.updateBall(dt);
+        this.updatePlayers(dt);
+        this.checkCollisions();
+        this.checkGoal();
+
+        // Se a bola não estiver se movendo, garantir que Y seja 3 (chão)
+        if (!this.ball.isMoving) {
+            this.ball.y = 3;
+        }
+
+        return this.getState();
+    }
+
+    updateIA(dt) {
+        this.players.forEach(p => {
+            if (p.isControlled) return;
+
+            if (this.mode === 'train' && p.role === 'FIELD') return;
+            // No modo 1v1, o Jogador 1 (Brasil) é manual se houver alguém controlando ou se for o padrão.
+            // O Jogador 2 (Argentina) é manual se 'autoOpponent' for falso OU se houver controle manual ativo.
+            if (this.mode === '1v1') {
+                if (p.id === 1) return; // Brasil sempre manual no 1v1 (Player 1)
+                if (p.id === 6 && (!this.autoOpponent || p.isControlled)) return; // Argentina manual se IA off ou se alguém assumir
+            }
+
+            if (p.cooldown > 0) return;
+            p.cooldown = 0.5;
+
+            // Distância para a bola (em unidades de 10)
+            const gridBallX = Math.round(this.ball.x / 10) * 10;
+            const gridBallZ = Math.round(this.ball.z / 10) * 10;
+            const distToBall = Math.abs(p.x - gridBallX) + Math.abs(p.z - gridBallZ);
+
+            if (p.role === 'GK') {
+                if (this.mode === 'train' && !this.autoGk) return; // Se for treino e autoGk falso, goleiro fica parado
+
+                let targetX = Math.max(-30, Math.min(30, gridBallX));
+                let dx = Math.sign(targetX - p.x) * 10; 
+                if (dx !== 0) this.movePlayer(p, dx, 0);
+                
+                // Após mover (ou se já estiver no lugar), verifica se pode chutar
+                const currentDist = Math.max(Math.abs(p.x - gridBallX), Math.abs(p.z - gridBallZ));
+                if (currentDist <= 10 && !this.ball.isMoving) {
+                    // GK sempre chuta para longe do próprio gol (em direção ao centro do campo)
+                    const dirZ = Math.sign(0 - p.z) || 1;
+                    const dirX = Math.sign(0 - p.x); 
+                    
+                    p.facingX = dirX;
+                    p.facingZ = dirZ;
+
+                    const kickPower = (this.mode === 'train') ? 3 : 1;
+                    this.handleAction(p.id, { type: 'kick', power: kickPower, dirX, dirZ });
+                }
+                return;
+            }
+
+            if (distToBall <= 10 && !this.ball.isMoving) {
+                const targetGoalZ = p.team === 'A' ? -150 : 150;
+                const distToGoal = Math.abs(targetGoalZ - p.z);
+                
+                let power = 1;
+                if (this.mode === '1v1') {
+                    if (distToGoal > 120) power = 2;
+                    if (distToGoal > 200) power = 3;
+                }
+
+                const dirZ = Math.sign(targetGoalZ - p.z);
+                const dirX = Math.sign(0 - p.x); 
+                this.handleAction(p.id, { type: 'kick', power: power, dirX, dirZ });
+                return;
+            }
+
+            // Lógica de quem persegue a bola
+            let myTeam = this.players.filter(pl => pl.team === p.team && pl.role === 'FIELD');
+            let isClosest = true;
+            for (let t of myTeam) {
+                if (t === p) continue;
+                let tDist = Math.abs(t.x - gridBallX) + Math.abs(t.z - gridBallZ);
+                if (tDist < distToBall) isClosest = false;
+            }
+
+            if (isClosest && !this.ball.isMoving) {
+                let dx = Math.sign(gridBallX - p.x) * 10;
+                let dz = Math.sign(gridBallZ - p.z) * 10;
+                
+                // Se estiver em cima da bola, anda em direção ao gol (conduzindo)
+                if (dx === 0 && dz === 0) {
+                    const targetGoalZ = p.team === 'A' ? -150 : 150;
+                    dz = Math.sign(targetGoalZ - p.z) * 10;
+                    dx = Math.sign(0 - p.x) * 10;
+                }
+
+                if (Math.abs(gridBallX - p.x) > Math.abs(gridBallZ - p.z) || (dx !== 0 && dz === 0)) {
+                    if (dx !== 0 && this.movePlayer(p, dx, 0)) return;
+                    if (dz !== 0) this.movePlayer(p, 0, dz);
+                } else {
+                    if (dz !== 0 && this.movePlayer(p, 0, dz)) return;
+                    if (dx !== 0) this.movePlayer(p, dx, 0);
+                }
+            } else {
+                // REPOSICIONAMENTO MAIS INTELIGENTE:
+                // Só volta para a base se a bola estiver longe (> 80 unidades) 
+                // OU se a bola estiver vindo para o seu campo.
+                const isBallSafe = (p.team === 'A' && gridBallZ < p.z) || (p.team === 'B' && gridBallZ > p.z);
+                if (distToBall > 80 || !isBallSafe) {
+                    let baseZ = p.team === 'A' ? 60 : -60;
+                    let baseX = (p.id % 2 === 0) ? -30 : 30; // Distribuição lateral simples
+                    
+                    let dx = Math.sign(baseX - p.x) * 10;
+                    let dz = Math.sign(baseZ - p.z) * 10;
+                    
+                    if (dz !== 0 && Math.random() > 0.6) this.movePlayer(p, 0, dz);
+                    else if (dx !== 0 && Math.random() > 0.6) this.movePlayer(p, dx, 0);
+                }
+            }
+        });
+    }
+
+    movePlayer(p, dx, dz) {
+        const newX = p.x + dx;
+        const newZ = p.z + dz;
+
+        // Limites específicos do Goleiro (Área Grande x10)
+        if (p.role === 'GK') {
+            if (newX < -40 || newX > 40) return false;
+            
+            if (this.mode === 'train') {
+                if (p.team === 'A' && newZ < 120) return false; 
+                if (p.team === 'B' && newZ > -120) return false;  
+            } else {
+                if (p.team === 'A' && newZ > -120) return false; 
+                if (p.team === 'B' && newZ < 120) return false;  
+            }
+        } else {
+            // Limites GERAIS para jogadores de linha (Permitido sair 2 quadrados = 20 unidades)
+            if (newX < -120 || newX > 120) return false;
+            // Permitir profundidade extra no gol (rede) ate 165 + 5 de margem
+            const isGoalWidth = newX >= -30 && newX <= 30;
+            const limitZ = isGoalWidth ? 175 : 170;
+            if (Math.abs(newZ) > limitZ) return false;
+        }
+        
+        // Impedir que dois jogadores fiquem na mesma casa
+        if (this.players.some(other => other.id !== p.id && other.x === newX && other.z === newZ)) return false;
+
+        // LÓGICA DE CONDUZIR/EMPURRAR A BOLA
+        const ballGridX = Math.round(this.ball.x / 10) * 10;
+        const ballGridZ = Math.round(this.ball.z / 10) * 10;
+
+        // Vetor relativo da bola para o jogador
+        const relX = ballGridX - p.x;
+        const relZ = ballGridZ - p.z;
+
+        // Se a bola estiver adjacente (em qualquer uma das 8 casas ao redor ou na mesma casa)
+        const isBallInReach = Math.abs(relX) <= 10 && Math.abs(relZ) <= 10;
+        
+        // BOLA MAGNÉTICA: Simplesmente empurra se encostar ou estiver em cima
+        // LÓGICA TRADICIONAL: Requer "isSweep" (direcional)
+        let isPushing = false;
+        if (this.magneticBall) {
+            isPushing = isBallInReach && !this.ball.isMoving;
+        } else {
+            const dot = relX * dx + relZ * dz;
+            isPushing = isBallInReach && (dot > 0 || (relX === 0 && relZ === 0)) && !this.ball.isMoving;
+        }
+
+        if (isPushing) {
+            let ballNextX = newX + dx;
+            let ballNextZ = newZ + dz;
+            
+            const isBallPathBlocked = this.players.some(other => other.x === ballNextX && other.z === ballNextZ);
+            
+            // Fora de campo: Laterais (+/- 100) e Fundo (+/- 150, a menos que seja no gol)
+            // Se for gol, permite ir até 165 para dar profundidade (rede)
+            const isGoalWidth = ballNextX >= -30 && ballNextX <= 30;
+            const goalLimitZ = isGoalWidth ? 165 : 150;
+            const isBallOutOfBounds = Math.abs(ballNextX) > 100 || (Math.abs(ballNextZ) > goalLimitZ && !isGoalWidth);
+
+            if (isBallPathBlocked) return false;
+
+            if (isBallOutOfBounds) {
+                if (Math.abs(ballNextX) > 100 && this.ballBounce) {
+                    this.ball.x = ballNextX; 
+                    this.triggerSideBounce();
+                    isPushing = true; // Permite movimento do jogador
+                } else {
+                    isPushing = false; // Bloqueado por limite físico
+                }
+            }
+
+            if (isPushing) {
+                this.ball.x = ballNextX;
+                this.ball.z = ballNextZ;
+                this.ball.y = 3; 
+            } else {
+                return false; // Não consegue mover porque a bola está bloqueada
+            }
+        }
+
+        p.x = newX;
+        p.z = newZ;
+        
+        // Atualizar direção para onde o jogador está olhando (facing)
+        // Se houver movimento, guardamos essa direção para o próximo chute
+        if (dx !== 0 || dz !== 0) {
+            p.facingX = Math.sign(dx);
+            p.facingZ = Math.sign(dz);
+        }
+
+        return true;
+    }
+
+    updateBall(dt) {
+        if (!this.ball.isMoving) return;
+
+        // Guardar posição anterior para swept collision
+        this.ball.prevX = this.ball.x;
+        this.ball.prevZ = this.ball.z;
+
+        this.ball.progress += dt * this.ball.speed;
+        if (this.ball.progress >= 1) {
+            this.ball.progress = 1;
+            this.ball.isMoving = false;
+            this.ball.x = Math.round(this.ball.targetX / 10) * 10;
+            this.ball.z = Math.round(this.ball.targetZ / 10) * 10;
+            this.ball.y = 3;
+        } else {
+            this.ball.x = this.ball.startX + (this.ball.targetX - this.ball.startX) * this.ball.progress;
+            this.ball.z = this.ball.startZ + (this.ball.targetZ - this.ball.startZ) * this.ball.progress;
+            this.ball.y = 3 + Math.sin(this.ball.progress * Math.PI) * this.ball.arcHeight;
+        }
+
+        // FÍSICA DE REBATIDA (Bounce) — pular se já houve gol (celebração)
+        if (this.isGoal) return;
+        
+        // Lateral do campo: +/- 100
+        if (this.ball.x > 100 || this.ball.x < -100) {
+            if (!this.triggerSideBounce()) {
+                // Rebate normal (espelhamento) se bounce estiver off
+                if (this.ball.x > 100) {
+                    this.ball.x = 200 - this.ball.x;
+                    this.ball.targetX = 200 - this.ball.targetX;
+                    this.ball.startX = 200 - this.ball.startX;
+                } else {
+                    this.ball.x = -200 - this.ball.x;
+                    this.ball.targetX = -200 - this.ball.targetX;
+                    this.ball.startX = -200 - this.ball.startX;
+                }
+            }
+        }
+
+        // Fundo do campo: +/- 150
+        // Só rebate se NÃO for gol (o checkGoal cuidará de capturar o gol antes ou depois)
+        // Aqui checamos se está fora da largura do gol (30 unidades) ou acima do travessão (25 unidades)
+        const isGoalWidth = this.ball.x >= -30 && this.ball.x <= 30;
+        const isGoalHeight = this.ball.y < 30; // Travessão generoso
+
+        if (this.ball.z > 150 && !(isGoalWidth && isGoalHeight)) {
+            this.ball.z = 300 - this.ball.z;
+            this.ball.targetZ = 300 - this.ball.targetZ;
+            this.ball.startZ = 300 - this.ball.startZ;
+        } else if (this.ball.z < -150 && !(isGoalWidth && isGoalHeight)) {
+            this.ball.z = -300 - this.ball.z;
+            this.ball.targetZ = -300 - this.ball.targetZ;
+            this.ball.startZ = -300 - this.ball.startZ;
+        }
+    }
+
+    checkCollisions() {
+        if (!this.ball.isMoving) return;
+
+        // Swept collision: usa o segmento (posição anterior → posição atual)
+        const prevX = this.ball.prevX !== undefined ? this.ball.prevX : this.ball.x;
+        const prevZ = this.ball.prevZ !== undefined ? this.ball.prevZ : this.ball.z;
+        const currX = this.ball.x;
+        const currZ = this.ball.z;
+
+        const segDx = currX - prevX;
+        const segDz = currZ - prevZ;
+        const segLenSq = segDx * segDx + segDz * segDz;
+
+        if (segLenSq < 0.01) return;
+
+        const COLLISION_RADIUS = 8;
+
+        const hitPlayer = this.players.find(p => {
+            if (p.id === this.ball.lastKickerId && this.ball.progress < 0.15) return false;
+
+            const apx = p.x - prevX;
+            const apz = p.z - prevZ;
+            let t = (apx * segDx + apz * segDz) / segLenSq;
+            t = Math.max(0, Math.min(1, t));
+
+            const closestX = prevX + t * segDx;
+            const closestZ = prevZ + t * segDz;
+
+            const dx = closestX - p.x;
+            const dz = closestZ - p.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
+
+            return dist < COLLISION_RADIUS;
+        });
+
+        if (hitPlayer) {
+            if (hitPlayer.role === 'GK' && this.ball.y < 30.0) {
+                this.ball.isMoving = false;
+                this.ball.x = hitPlayer.x;
+                this.ball.z = hitPlayer.z > 0 ? hitPlayer.z - 10 : hitPlayer.z + 10;
+                this.ball.y = 3;
+            }
+            else if (this.ball.y < 20.0) {
+                this.ball.isMoving = false;
+                this.ball.x = hitPlayer.x;
+                this.ball.z = hitPlayer.z;
+                this.ball.y = 3;
+            }
+        }
+    }
+
+    updatePlayers(dt) {
+        this.players.forEach(p => {
+            if (p.cooldown > 0) p.cooldown -= dt;
+            if (p.messageTimeout > 0) {
+                p.messageTimeout -= dt;
+                if (p.messageTimeout <= 0) p.message = "";
+            }
+        });
+    }
+
+    checkGoal() {
+        if (this.isGoal) return;
+        
+        const bx = this.ball.x;
+        const bz = this.ball.z;
+        const by = this.ball.y;
+
+        // Brasil (A) está em +140. Ele faz gol no lado NEGATIVO (-151).
+        if (bz <= -151 && bx >= -30 && bx <= 30 && by < 30) {
+            this.score.A++; 
+            this.triggerGoal();
+        } 
+        // Argentina (B) está em -140. Ela faz gol no lado POSITIVO (+151).
+        else if (bz >= 151 && bx >= -30 && bx <= 30 && by < 30) {
+            this.score.B++; 
+            this.triggerGoal();
+        }
+    }
+
+    triggerGoal() {
+        this.isGoal = true;
+        setTimeout(() => {
+            this.resetPositions();
+            this.isGoal = false;
+        }, 3000);
+    }
+
+    resetPositions() {
+        this.ball.isMoving = false;
+        this.ball.progress = 0;
+        
+        if (this.mode === 'play') {
+            this.ball.x = 0;
+            this.ball.z = 0;
+
+            const starts = [
+                { id: 1, x: 0, z: 140 }, { id: 2, x: -30, z: 80 }, { id: 3, x: 30, z: 80 }, { id: 4, x: -50, z: 20 }, { id: 5, x: 50, z: 20 },
+                { id: 6, x: 0, z: -140 }, { id: 7, x: -30, z: -80 }, { id: 8, x: 30, z: -80 }, { id: 9, x: -50, z: -20 }, { id: 10, x: 50, z: -20 }
+            ];
+
+            starts.forEach(s => {
+                const p = this.players.find(pl => pl.id === s.id);
+                if (p) { p.x = s.x; p.z = s.z; p.cooldown = 0; }
+            });
+        } else if (this.mode === 'train') {
+            const randomX = (Math.floor(Math.random() * 17) - 8) * 10;
+            const randomZ = (Math.floor(Math.random() * 21) - 6) * 10;
+            this.ball.x = randomX;
+            this.ball.z = randomZ;
+
+            const pTrainer = this.players.find(pl => pl.id === 1);
+            if (pTrainer) { 
+                pTrainer.x = 0; pTrainer.z = 140; pTrainer.cooldown = 0; 
+                pTrainer.facingX = 0; pTrainer.facingZ = -1;
+            }
+            
+            const pGK = this.players.find(pl => pl.role === 'GK');
+            if (pGK) { 
+                pGK.x = 0; pGK.z = -140; pGK.cooldown = 0; 
+                pGK.facingX = 0; pGK.facingZ = 1;
+            }
+        } else if (this.mode === '1v1') {
+            const randomX = (Math.floor(Math.random() * 13) - 6) * 10;
+            const randomZ = (Math.floor(Math.random() * 11) - 5) * 10;
+            this.ball.x = randomX;
+            this.ball.z = randomZ;
+
+            const p1 = this.players.find(pl => pl.id === 1);
+            if (p1) { p1.x = 0; p1.z = 100; p1.cooldown = 0; p1.facingX = 0; p1.facingZ = -1; }
+            const p2 = this.players.find(pl => pl.id === 6);
+            if (p2) { p2.x = 0; p2.z = -100; p2.cooldown = 0; p2.facingX = 0; p2.facingZ = 1; }
+        }
+    }
+
+    swapSides() {
+        // Inverte posições Z e facing de todos os jogadores
+        this.players.forEach(p => {
+            p.z = -p.z;
+            p.facingZ = -p.facingZ;
+        });
+        // Inverte a bola também
+        this.ball.z = -this.ball.z;
+        if (this.ball.isMoving) {
+            this.ball.startZ = -this.ball.startZ;
+            this.ball.targetZ = -this.ball.targetZ;
+        }
+        // Reset posições para posições iniciais invertidas
+        this.resetPositions();
+    }
+
+    triggerSideBounce() {
+        if (!this.ballBounce) return false;
+        
+        const side = this.ball.x > 100 ? 1 : (this.ball.x < -100 ? -1 : 0);
+        if (side === 0) return false;
+
+        this.ball.x = side * 99; // Tira da borda imediatamente para evitar recursão ou bugs
+        this.ball.targetX = -side * (50 + Math.random() * 50); // Alvo entre o centro e a metade oposta
+        this.ball.startX = this.ball.x;
+        
+        // Desvio aleatório no Z para não ser uma linha reta chata
+        const randomZShift = (Math.random() - 0.5) * 150;
+        this.ball.targetZ = Math.max(-140, Math.min(140, this.ball.z + randomZShift));
+        this.ball.startZ = this.ball.z;
+        
+        this.ball.progress = 0; // Reinicia o progresso para o novo "pulo"
+        this.ball.speed = 2.2; // Um pouco mais rápido no pipoco
+        this.ball.arcHeight = 12;
+        this.ball.isMoving = true;
+        return true;
+    }
+
+    handleAction(playerId, action) {
+        if (action.type === 'toggleGk') {
+            this.autoGk = action.active;
+            return;
+        }
+        if (action.type === 'toggleOpponent') {
+            this.autoOpponent = action.active;
+            return;
+        }
+        if (action.type === 'toggleBallBounce') {
+            this.ballBounce = action.active;
+            return;
+        }
+        if (action.type === 'toggleMagneticBall') {
+            this.magneticBall = action.active;
+            return;
+        }
+        if (action.type === 'setGameTime') {
+            this.TIME_PER_HALF = action.seconds || 120;
+            this.gameTime = this.TIME_PER_HALF;
+            this.currentHalf = 1;
+            this.score = { A: 0, B: 0 };
+            this.resetPositions();
+            return;
+        }
+        if (action.type === 'setGameSpeed') {
+            const speed = parseFloat(action.speed);
+            if (!isNaN(speed) && speed > 0 && speed <= 5) {
+                this.gameSpeed = speed;
+            }
+            return;
+        }
+        if (action.type === 'setRealTimeClock') {
+            this.realTimeClock = action.active === true;
+            return;
+        }
+
+        let targetPlayer = this.players.find(pl => pl.id === playerId);
+        
+        // Mapeamento especial para o modo 1v1 via API
+        if (this.mode === '1v1') {
+            if (playerId === 1) targetPlayer = this.players.find(pl => pl.id === 1);
+            if (playerId === 2) targetPlayer = this.players.find(pl => pl.id === 6);
+        }
+
+        if (!targetPlayer) return;
+
+        if (action.isManual) {
+            targetPlayer.isControlled = true;
+            if (targetPlayer.controlTimeout) clearTimeout(targetPlayer.controlTimeout);
+            targetPlayer.controlTimeout = setTimeout(() => { targetPlayer.isControlled = false; }, 5000); 
+        }
+
+        const p = targetPlayer;
+
+        // Processa configurações de nome antes da validação de partida ativa
+        if (action.type === 'config') {
+            if (action.name) {
+                p.name = action.name.substring(0, 50);
+                if (action.isTeamName) {
+                    if (p.team === 'A') this.teamNames.A = p.name;
+                    if (p.team === 'B') this.teamNames.B = p.name;
+                } else {
+                    if (p.team === 'A') this.teamNames.A = "Brasil";
+                    if (p.team === 'B') this.teamNames.B = "Argentina";
+                }
+            }
+            if (action.number !== undefined) p.number = parseInt(action.number);
+            return; // Config processada, encerra execução.
+        }
+
+        if (action.type === 'reset') {
+            if (this.mode === 'play') {
+                this.reset();
+                this.isGameActive = true;
+            } else {
+                this.resetPositions();
+                this.isGameActive = true;
+            }
+            return;
+        }
+
+        if (action.type === 'stopGame' || action.type === 'endGame') {
+            this.isGameActive = false;
+            return;
+        }
+
+        // Bloquear todas as ações (incluindo fala/pensamento) se a partida não estiver ativa
+        if (!this.isGameActive) {
+            return;
+        }
+
+        // Processamento global de fala (balão de texto)
+        const speechText = action.text || action.thinking;
+        if (speechText) {
+            p.message = speechText.substring(0, 100);
+            p.messageTimeout = 3.0; // Duração do balão
+        }
+
+        if (action.type === 'move') {
+            // if (p.cooldown > 0) return; // Prevent rapid movement spam
+            const moved = this.movePlayer(p, (action.dx || 0) * 10, (action.dz || 0) * 10);
+            // if (moved) p.cooldown = 0.2; // Enforce a ~0.2s rhythm per tile step
+        }
+        else if (action.type === 'kick') {
+            const gridBallX = Math.round(this.ball.x / 10) * 10;
+            const gridBallZ = Math.round(this.ball.z / 10) * 10;
+            const dist = Math.max(Math.abs(p.x - gridBallX), Math.abs(p.z - gridBallZ));
+
+            if (dist <= 10 && !this.ball.isMoving) {
+                this.ball.isMoving = true;
+                this.ball.startX = this.ball.x;
+                this.ball.startZ = this.ball.z;
+                this.ball.progress = 0;
+                this.ball.lastKickerId = p.id; 
+                
+                // Força deve ser estritamente 1, 2 ou 3
+                let power = parseInt(action.power);
+                if (isNaN(power) || power < 1) power = 1;
+                if (power > 3) power = 3;
+
+                // Se dirX/Z não forem enviados, usa a direção que o jogador está "olhando"
+                let dirX = (action.dirX !== undefined) ? action.dirX : (p.facingX || 0);
+                let dirZ = (action.dirZ !== undefined) ? action.dirZ : (p.facingZ || (p.team === 'A' ? -1 : 1));
+
+                // Normalização obrigatória da direção
+                const mag = Math.sqrt(dirX * dirX + dirZ * dirZ);
+                if (mag > 0) {
+                    dirX /= mag;
+                    dirZ /= mag;
+                } else {
+                    dirX = 0;
+                    dirZ = (p.team === 'A' ? -1 : 1);
+                }
+
+                let distance = 0;
+                if (power === 1) { distance = 60; this.ball.speed = 3.0; this.ball.arcHeight = 1.0; } // Mais rasteiro e curto
+                else if (power === 2) { distance = 130; this.ball.speed = 2.2; this.ball.arcHeight = 18.0; } // Médio
+                else if (power === 3) { distance = 240; this.ball.speed = 1.6; this.ball.arcHeight = 40.0; } // Longo / Alto
+
+                this.ball.targetX = this.ball.x + (dirX * distance);
+                this.ball.targetZ = this.ball.z + (dirZ * distance);
+            }
+        }
+        else if (action.type === 'pull') {
+            const gridBallX = Math.round(this.ball.x / 10) * 10;
+            const gridBallZ = Math.round(this.ball.z / 10) * 10;
+            const dist = Math.max(Math.abs(p.x - gridBallX), Math.abs(p.z - gridBallZ));
+
+            if (dist <= 10 && !this.ball.isMoving) {
+                // Se o jogador estiver na frente da bola (ou adjacente), puxa ela para o outro lado
+                // Se estava na esquerda, vai pra direita. Se estava em cima, vai pra baixo.
+                const relX = gridBallX - p.x;
+                const relZ = gridBallZ - p.z;
+
+                // A bola passa por "baixo" do jogador, indo para a posição oposta à atual em relação ao jogador
+                let newBallX = p.x - relX;
+                let newBallZ = p.z - relZ;
+
+                // Se o jogador estiver EXATAMENTE em cima da bola (relX=0, relZ=0), 
+                // puxamos ela para trás da direção que ele está olhando
+                if (relX === 0 && relZ === 0) {
+                    newBallX = p.x - (p.facingX * 10 || 0);
+                    newBallZ = p.z - (p.facingZ * 10 || (p.team === 'A' ? 10 : -10));
+                }
+
+                // Validação de limites e colisões para a nova posição da bola
+                const isGoalWidth = newBallX >= -30 && newBallX <= 30;
+                const goalLimitZ = isGoalWidth ? 165 : 150;
+                const isBallOutOfBounds = Math.abs(newBallX) > 100 || (Math.abs(newBallZ) > goalLimitZ && !isGoalWidth);
+                const isPathBlocked = this.players.some(other => other.id !== p.id && other.x === newBallX && other.z === newBallZ);
+
+                if (!isBallOutOfBounds && !isPathBlocked) {
+                    this.ball.x = newBallX;
+                    this.ball.z = newBallZ;
+                    this.ball.y = 3;
+                    this.ball.isMoving = false;
+                    
+                    p.message = "Puxou!";
+                    p.messageTimeout = 1.0;
+                    p.cooldown = 0.5; // Cooldown um pouco maior para evitar spam de puxada
+                }
+            }
+        }
+        else if (action.type === 'speak') {
+            p.message = action.text.substring(0, 100);
+            p.messageTimeout = 3.0;
+        }
+    }
+
+    calculateRay(p) {
+        // Se não tiver direção, não tem raio
+        if (p.facingX === 0 && p.facingZ === 0) return null;
+
+        const gridBallX = Math.round(this.ball.x / 10) * 10;
+        const gridBallZ = Math.round(this.ball.z / 10) * 10;
+        const hasBall = Math.abs(p.x - gridBallX) <= 10 && Math.abs(p.z - gridBallZ) <= 10;
+
+        // O raio começa na posição do jogador, ou depois da bola se ele estiver com ela
+        let startX = p.x;
+        let startZ = p.z;
+        if (hasBall) {
+            startX += p.facingX * 15;
+            startZ += p.facingZ * 15;
+        }
+
+        const RAY_MAX_DIST = 200;
+        const step = 2; // Reduzido de 10 para 2 para mais precisão
+        let rayX = startX;
+        let rayZ = startZ;
+        let detected = "nada";
+        let distFound = RAY_MAX_DIST;
+
+        // 3. Cálculo Matemático de Interseção com o GOL (Melhor Precisão)
+        let goalDist = Infinity;
+        let goalType = "nada";
+        
+        if (p.facingZ !== 0) {
+            // Verifica qual linha de fundo o raio atinge (-150 ou 150)
+            const targetLineZ = p.facingZ < 0 ? -150 : 150;
+            const dz = targetLineZ - startZ;
+            const dIntersect = dz / p.facingZ;
+            
+            if (dIntersect > 0 && dIntersect <= RAY_MAX_DIST) {
+                const intersectX = startX + p.facingX * dIntersect;
+                // Verifica se está dentro da largura do gol (-30 a 30)
+                if (Math.abs(intersectX) <= 30) {
+                    goalDist = dIntersect;
+                    // Brasil (A) busca o gol em -150. Argentina (B) busca o gol em 150.
+                    const isOpponentGoal = (p.team === 'A' && targetLineZ === -150) || (p.team === 'B' && targetLineZ === 150);
+                    goalType = isOpponentGoal ? "gol_adversario" : "meu_gol";
+                }
+            }
+        }
+
+        for (let d = 0; d < RAY_MAX_DIST; d += step) {
+            // Se o raio encontrou o GOL nesta distância e nada bloqueou antes
+            if (d >= goalDist) {
+                detected = goalType;
+                distFound = d;
+                rayX = startX + p.facingX * d;
+                rayZ = startZ + p.facingZ * d;
+                break;
+            }
+
+            rayX = startX + p.facingX * d;
+            rayZ = startZ + p.facingZ * d;
+
+            // 1. Detectar Outro Jogador (Adversário ou Parceiro)
+            const other = this.players.find(other => 
+                other.id !== p.id && 
+                Math.abs(other.x - rayX) < 7 && 
+                Math.abs(other.z - rayZ) < 7
+            );
+            if (other) {
+                detected = other.team === p.team ? "parceiro" : "adversário";
+                distFound = d;
+                break;
+            }
+
+            // 2. Detectar Bola (se não estiver com ela)
+            if (!hasBall) {
+                if (Math.abs(this.ball.x - rayX) < 5 && Math.abs(this.ball.z - rayZ) < 5) {
+                    detected = "bola";
+                    distFound = d;
+                    break;
+                }
+            }
+
+            // Limites do campo (se saiu do campo lateralmente antes de achar algo, para o raio)
+            if (Math.abs(rayX) > 110) break;
+            // Se passou da linha do gol sem detectar gol (pode ser o gol adversário ou fundo)
+            if (Math.abs(rayZ) > 165) break;
+        }
+
+        return { type: detected, distance: distFound, x: rayX, z: rayZ };
+    }
+
+    getState() {
+        return {
+            fieldSize: { width: this.GRID_W + this.MARGIN*2, height: this.GRID_H + this.MARGIN*2 },
+            ball: { x: this.ball.x, y: this.ball.y, z: this.ball.z, isMoving: this.ball.isMoving },
+            players: this.players.map(p => {
+                const ray = this.calculateRay(p);
+                return {
+                    id: p.id, team: p.team, role: p.role, x: p.x, z: p.z, name: p.name, number: p.number, message: p.message,
+                    facingX: p.facingX, facingZ: p.facingZ,
+                    ray: ray
+                };
+            }),
+            score: this.score,
+            teamNames: this.teamNames,
+            gameTime: this.gameTime,
+            timePerHalf: this.TIME_PER_HALF,
+            currentHalf: this.currentHalf,
+            isGameActive: this.isGameActive,
+            isGoal: this.isGoal
+        };
+    }
+}

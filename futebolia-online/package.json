@@ -1,0 +1,12 @@
+{
+  "name": "futebolia-online",
+  "version": "1.0.0",
+  "description": "FuteboliA Online Module for AI Platform",
+  "type": "module",
+  "scripts": {
+    "start": "node api/routes.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

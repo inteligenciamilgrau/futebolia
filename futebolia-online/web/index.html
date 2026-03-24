@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuteboliA - Jogo de Futebol IA</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+    <link rel="stylesheet" href="css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script>
+        window.PLATFORM_GAME_CONFIG = {
+            slug: 'futebolia-online',
+            apiBasePath: '/api/v1/games/futebolia-online'
+        };
+    </script>
+</head>
+<body>
+
+    <div id="start-screen">
+        <div class="menu-container">
+            <div class="train-options">
+                <button id="btn-mano" class="start-btn mano-btn">MANO A MANO (1v1)</button>
+                <button id="btn-treinar" class="start-btn trn-btn">MODO TREINO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div id="placar-container">
+            <span class="time-a">BRASIL</span> <span id="score-a">0</span>
+            <div id="clock-container">
+                <div id="clock-wrapper">
+                    <div id="clock-fill"></div>
+                    <span id="game-time">02:00</span>
+                </div>
+                <div id="half-indicator">1º T</div>
+            </div>
+            <span id="score-b">0</span> <span class="time-b">ARGENTINA</span>
+        </div>
+        
+        <!-- Menu Unificado de Opções e Controles -->
+        <div id="game-menu" class="minimized">
+            <div id="menu-header" onclick="toggleMenu()">
+                <span id="menu-icon">⚙️</span>
+                <span id="menu-title">Opções & Controles</span>
+                <span id="menu-toggle-arrow">▲</span>
+            </div>
+            
+            <div id="menu-content">
+                <!-- Seção de Opções (Dinâmica) -->
+                <div id="training-controls" style="display: none;">
+                    <h4 id="mode-ctrl-title">Configurações de Partida</h4>
+                    <label id="gk-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-goleiro" checked>
+                        <span>Goleiro Automático</span>
+                    </label>
+                    <label id="opponent-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-opponent" checked>
+                        <span>Oponente com IA</span>
+                    </label>
+                    <label id="bounce-ctrl-label" class="gk-toggle" style="display: none;">
+                        <input type="checkbox" id="ingame-chk-bounce" checked>
+                        <span>Rebate Aleatório</span>
+                    </label>
+                </div>
+
+                <div id="speed-controls" style="margin-top: 15px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 5px;">Velocidade do Jogo</h4>
+                    <select id="game-speed-select" style="width: 100%; margin-bottom: 8px; background: rgba(0,0,0,0.5); color: white; border: 1px solid #444; border-radius: 5px; padding: 5px; outline: none;">
+                        <option value="0.067">Caracol (0.067x - 3s/movimento)</option>
+                        <option value="0.1">Tartaruga (0.1x - 2s/movimento)</option>
+                        <option value="0.2">Passeio (0.2x - 1s/movimento)</option>
+                        <option value="0.5">Muito Lento (0.5x)</option>
+                        <option value="0.75">Lento (0.75x)</option>
+                        <option value="1.0">Normal (1x)</option>
+                        <option value="1.5">Rápido (1.5x)</option>
+                        <option value="2.0">Turbo (2x)</option>
+                    </select>
+                    <label id="realtime-ctrl-label" class="gk-toggle" style="margin-top: 5px;">
+                        <input type="checkbox" id="ingame-chk-realtime">
+                        <span style="font-size: 0.9em;">Relógio em Tempo Real</span>
+                    </label>
+                </div>
+
+                <!-- Seção de Instruções -->
+                <div id="instructions">
+                    <h4>Comandos</h4>
+                    <ul>
+                        <li><b>W, A, S, D</b>: Mover</li>
+                        <li><b>1, 2, 3</b>: Chutar (Força)</li>
+                        <li><b>P</b>: Puxar Bola</li>
+                        <li><b>T</b>: Chat Global</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="center-messages">GOL!</div>
+
+    <script type="module" src="js/main.js?v=4"></script>
+</body>
+</html>

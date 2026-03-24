@@ -10,6 +10,7 @@ tmp/
 backups/
 legacy/
 
-# Independent MCP Project
-futebolia-mcp/
+# Independent Projects
+# futebolia-mcp/
+# futebolia-online/
 node_modules/
