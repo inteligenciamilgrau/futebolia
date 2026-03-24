@@ -9,3 +9,7 @@ tmp/
 *.tmp
 backups/
 legacy/
+
+# Independent MCP Project
+futebolia-mcp/
+node_modules/
